@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
-using NetworkTypes;
 
-namespace Models
+namespace NetworkTypes
 {
     public enum HeroRace { Human, Orc };
     public enum HeroType { Might, Magic }

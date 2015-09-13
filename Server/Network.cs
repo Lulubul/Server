@@ -1,14 +1,8 @@
 ﻿using System;
 using System.IO;
-using System.Runtime.Serialization;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
 using NetworkTypes;
 
 namespace Server
@@ -47,7 +41,6 @@ namespace Server
             EndPoint = new IPEndPoint(IPAddress.Any, Port);
             Socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             _handler = new NetworkActions();
-            StartListening();
         }
 
         public void StartListening()
@@ -87,11 +80,10 @@ namespace Server
 
         public void NewConnection(Socket sockClient)
         {
-            Player client = new Player(sockClient);
+            var client = new Player(sockClient);
             Console.WriteLine("Client {0}, joined", client.Sock.RemoteEndPoint);
             var args = new List<SerializableType>();
-            var message = new SimpleMessage();
-            message.Message = "Hello";
+            var message = new SimpleMessage {Message = "Hello"};
             args.Add(message);
             var remoteMethod = new RemoteInvokeMethod("Handler", Command.Connect.ToString(), args);
             var bytes = RemoteInvokeMethod.WriteToStream(remoteMethod);

@@ -2,7 +2,7 @@
 using System.Linq;
 using PathFinding;
 
-namespace Models
+namespace NetworkTypes
 {
     public class Tile : SpacialObject, IHasNeighbours<Tile>
     {

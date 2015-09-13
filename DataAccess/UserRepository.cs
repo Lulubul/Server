@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Data.Entity;
+using System.Linq;
 using Entities;
 
 namespace DataAccess
@@ -19,5 +20,15 @@ namespace DataAccess
             return _context.Users;
         }
 
+        public User Get(string username, string password)
+        {
+            return _context.Users.FirstOrDefault(u => u.Username == username && u.Password == password);
+        }
+
+        public int Add(string username, string password)
+        {
+            _context.Users.Add(new User() {Username = username, Password = password});
+            return _context.SaveChanges();
+        }
     }
 }

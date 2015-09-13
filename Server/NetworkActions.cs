@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using Models;
+using DataAccess;
+using Entities;
 using NetworkTypes;
 
 namespace Server
@@ -15,6 +15,7 @@ namespace Server
         public Dictionary<string, BoardBehavior> Games;
 
         private readonly Type _type;
+        private readonly UserRepository _userRepository;
 
         public NetworkActions()
         {
@@ -24,6 +25,8 @@ namespace Server
             Games = new Dictionary<string, BoardBehavior>();
 
             _type = GetType();
+            var repository = new Repository();
+            _userRepository = repository.Users;
         }
 
         public void Execute(Command command, string serviceClassName, List<SerializableType> parameters, Player client)
@@ -35,7 +38,7 @@ namespace Server
                     var lobby = parameters[0] as LobbyInfo;
                     parameters.RemoveAt(0);
                     var fields = parameters.ToArray();
-                    MethodInfo theMethod = Games[lobby.Name].GetType().GetMethod(command.ToString());
+                    var theMethod = Games[lobby.Name].GetType().GetMethod(command.ToString());
                     theMethod.Invoke(Games[lobby.Name], fields);
                 }
                 else
@@ -75,58 +78,32 @@ namespace Server
             var now = DateTime.Now;
             var strDateLine = "Welcome " + now.ToString("G");
             var args = new List<SerializableType>();
-            var message = new SimpleMessage();
-            message.Message = strDateLine;
+            var message = new SimpleMessage { Message = strDateLine };
             args.Add(message);
-            var remote = new RemoteInvokeMethod(args);
-            return remote;
+            return new RemoteInvokeMethod(args);
         }
 
         public RemoteInvokeMethod Login(Authentication authentification)
         {
-            using (var context = new HeroesEntities())
+            var name = authentification.Name;
+            var pass = authentification.Pass;
+            var user = _userRepository.Get(name, pass);
+            var args = new List<SerializableType>();
+            var gambler = new Gambler();
+
+            if (user == null)
             {
-                var name = authentification.Name;
-                var pass = authentification.Pass;
-                context.Configuration.LazyLoadingEnabled = false;
-
-                context.Gambler.Load();
-                Gambler gambler = context.Gambler.Where(x => x.name == name && x.pass == pass).FirstOrDefault();
-                if (gambler != null)
-                {
-                    var args = new List<SerializableType>();
-                    var user = new Gambler();
-                    user.Name = gambler.name;
-                    user.Id = gambler.id;
-                    user.Response = Response.Succed.ToString();
-                    args.Add(user);
-
-                    var n = Lobbies.Count;
-                    for (var i = 0; i < n; i++)
-                    {
-                        var info = new LobbyInfo();
-                        info.Name = Lobbies.ElementAt(i).Value.Name;
-                        info.MaxPlayers = Lobbies.ElementAt(i).Value.MaxPlayers;
-                        info.GameType = Lobbies.ElementAt(i).Value.GameType;
-                        info.CurrentPlayers = Lobbies.ElementAt(i).Value.Players.Count;
-                        args.Add(info);
-                    }
-
-                    var remote = new RemoteInvokeMethod(args);
-                    return remote;
-                }
-                else
-                {
-                    var args = new List<SerializableType>();
-                    var user = new Gambler();
-                    user.Name = name;
-                    user.Id = 0;
-                    user.Response = Response.Fail.ToString();
-                    args.Add(user);
-                    var remote = new RemoteInvokeMethod(args);
-                    return remote;
-                }
+                gambler.Response = Response.Fail.ToString();
             }
+            else
+            {
+                gambler.Name = user.Username;
+                gambler.Id = user.Id;
+                gambler.Response = Response.Succed.ToString();
+                AddLobbyRooms(args);
+            }
+            args.Add(gambler);
+            return new RemoteInvokeMethod(args);
         }
 
         public RemoteInvokeMethod Logout(Authentication authentification)
@@ -134,44 +111,39 @@ namespace Server
             var args = new List<SerializableType>();
             var message = new ResponseMessage { Response = Response.Succed.ToString() };
             args.Add(message);
-            var remote = new RemoteInvokeMethod(args);
-            return remote;
+            return new RemoteInvokeMethod(args);
         }
 
         public RemoteInvokeMethod Register(Authentication authentification)
         {
-            using (var context = new HeroesEntities())
+            var username = authentification.Name;
+            var password = authentification.Pass;
+            var id = _userRepository.Add(username, password);
+            var args = new List<SerializableType>();
+            var gambler = new Gambler
             {
-                var gambler = new User();
-                gambler.Name = authentification.Name;
-                gambler.Slot = authentification.Pass;
-                context.User.Add(gambler);
-                context.SaveChanges();
+                Name = username,
+                Id = id,
+                Response = Response.Succed.ToString()
+            };
+            args.Add(gambler);
+            AddLobbyRooms(args);
+            return new RemoteInvokeMethod(args);
+        }
 
-                var args = new List<SerializableType>();
-                var user = new Gambler
+        public void AddLobbyRooms(ICollection<SerializableType> args)
+        {
+            var n = Lobbies.Count;
+            for (var i = 0; i < n; i++)
+            {
+                var info = new LobbyInfo
                 {
-                    Name = gambler.name,
-                    Id = gambler.id,
-                    Response = Response.Succed.ToString()
+                    Name = Lobbies.ElementAt(i).Value.Name,
+                    MaxPlayers = Lobbies.ElementAt(i).Value.MaxPlayers,
+                    GameType = Lobbies.ElementAt(i).Value.GameType,
+                    CurrentPlayers = Lobbies.ElementAt(i).Value.Players.Count
                 };
-                args.Add(user);
-
-                var n = Lobbies.Count;
-                for (var i = 0; i < n; i++)
-                {
-                    var info = new LobbyInfo
-                    {
-                        PlayerId = Lobbies.ElementAt(i).Value.CreatorId,
-                        Name = Lobbies.ElementAt(i).Value.Name,
-                        MaxPlayers = Lobbies.ElementAt(i).Value.MaxPlayers,
-                        GameType = Lobbies.ElementAt(i).Value.GameType,
-                        CurrentPlayers = Lobbies.ElementAt(i).Value.Players.Count
-                    };
-                    args.Add(info);
-                }
-                var remote = new RemoteInvokeMethod(args);
-                return remote;
+                args.Add(info);
             }
         }
 
@@ -200,9 +172,7 @@ namespace Server
                     Message = room.Name
                 };
                 args.Add(message);
-                var remote = new RemoteInvokeMethod(args);
-
-                var lobby = new List<SerializableType> {room};
+                var lobby = new List<SerializableType> { room };
                 var response = new RemoteInvokeMethod(Command.SyncRooms, lobby);
                 var bytes = RemoteInvokeMethod.WriteToStream(response);
                 var clients = Players.Where(client => client.State == State.Lobby);
@@ -210,7 +180,6 @@ namespace Server
                 {
                     client.Sock.Send(bytes, bytes.Length, 0);
                 }
-                return remote;
             }
             else
             {
@@ -220,52 +189,48 @@ namespace Server
                     Message = "Room name already exist."
                 };
                 args.Add(message);
-                var remote = new RemoteInvokeMethod(args);
-                return remote;
             }
+            return new RemoteInvokeMethod(args);
         }
 
         public RemoteInvokeMethod Join(LobbyInfo lobby)
         {
-            //Find Player
             var playerId = lobby.PlayerId;
             var roomName = lobby.Name;
             var index = Players.FindIndex(x => x.Id == playerId);
-
-            //Fill Player
-            var user = new Gambler()
+            var emptySlot = Lobbies[roomName].EmptySlot();
+            var gambler = new Gambler()
             {
                 Id = playerId,
                 Name = Players[index].Name,
-                Slot = Lobbies[roomName].EmptySlot()
+                Slot = emptySlot
             };
 
-            if (user.Slot >= 0)
+            if (emptySlot >= 0)
             {
-                user.Response = Response.Succed.ToString();
+                gambler.Response = Response.Succed.ToString();
             }
             else
             {
-                user.Response = Response.Fail.ToString();
-                var users = new List<SerializableType> {user};
-                var rim = new RemoteInvokeMethod(users);
-                return rim;
+                gambler.Response = Response.Fail.ToString();
+                var user = new List<SerializableType> { gambler };
+                return new RemoteInvokeMethod(user);
             }
 
             //Send SyncLobby
-            var newPlayer = new List<SerializableType> {user};
+            var newPlayer = new List<SerializableType> { gambler };
             var response = new RemoteInvokeMethod(Command.SyncLobby, newPlayer);
             var bytes = RemoteInvokeMethod.WriteToStream(response);
 
-            foreach (Player player in Lobbies[roomName].Players)
+            foreach (var player in Lobbies[roomName].Players)
             {
                 player.Sock.Send(bytes, bytes.Length, 0);
             }
 
-            List<Player> playersInLobby = Players.FindAll(x => (x.State == State.Lobby || x.State == State.Connect) && x.Id != user.Id);
+            var playersInLobby = Players.FindAll(x => (x.State == State.Lobby || x.State == State.Connect) && x.Id != gambler.Id);
             var lobbyUpdate = new RemoteInvokeMethod(Command.UpdateLobby, newPlayer);
             var bytesMessage = RemoteInvokeMethod.WriteToStream(lobbyUpdate);
-            foreach (Player player in playersInLobby)
+            foreach (var player in playersInLobby)
             {
                 player.Sock.Send(bytesMessage, bytesMessage.Length, 0);
             }
@@ -276,22 +241,20 @@ namespace Server
             var lobbyInfo = new LobbyInfo(Lobbies[roomName].CreatorId, Lobbies[roomName].Name, Lobbies[roomName].GameType, Lobbies[roomName].MaxPlayers, Lobbies[roomName].Players.Count);
             args.Add(lobbyInfo);
 
-            foreach (Player player in Lobbies[roomName].Players)
+            args.AddRange(Lobbies[roomName].Players.Select(player => new Gambler
             {
-                var lobbyUser = new Gambler();
-                lobbyUser.Name = player.Name;
-                lobbyUser.Id = player.Id;
-                lobbyUser.Slot = player.Slot;
-                lobbyUser.Response = Response.Succed.ToString();
-                args.Add(lobbyUser);
-            }
+                Name = player.Name,
+                Id = player.Id,
+                Slot = player.Slot,
+                Response = Response.Succed.ToString()
+            }));
 
             Lobbies[lobby.Name].Players.Add(Players[index]);
-            Players[index].Slot = user.Slot;
+            Players[index].Slot = gambler.Slot;
             Players[index].Team = Players[index].Slot % 2 == 0 ? Team.Red : Team.Blue;
 
             Players[index].State = State.Join;
-            args.Add(user);
+            args.Add(gambler);
             var remote = new RemoteInvokeMethod(args);
             return remote;
         }
@@ -301,34 +264,26 @@ namespace Server
             var playerId = lobby.PlayerId;
             var roomName = lobby.Name;
             var index = Players.FindIndex(x => x.Id == playerId);
-            Player player = Players[index];
-
+            var player = Players[index];
             player.Team = player.Team == Team.Blue ? Team.Red : Team.Blue;
             player.Slot = Lobbies[lobby.Name].TeamSlot(player.Team);
 
-            var args = new List<SerializableType>();
-            foreach (Player user in Lobbies[roomName].Players)
+            var args = Lobbies[roomName].Players.Select(user => new Gambler
             {
-                var lobbyUser = new Gambler
-                {
-                    Name = user.Name,
-                    Id = user.Id,
-                    Slot = user.Slot,
-                    Response = Response.Succed.ToString()
-                };
-                args.Add(lobbyUser);
-            }
+                Name = user.Name,
+                Id = user.Id,
+                Slot = user.Slot,
+                Response = Response.Succed.ToString()
+            }).Cast<SerializableType>().ToList();
 
-            //Sync Lobby
             var response = new RemoteInvokeMethod(Command.SyncLobby, args);
             var bytes = RemoteInvokeMethod.WriteToStream(response);
-            foreach (Player user in Lobbies[roomName].Players)
+            foreach (var user in Lobbies[roomName].Players)
             {
                 user.Sock.Send(bytes, bytes.Length, 0);
             }
 
-            var remote = new RemoteInvokeMethod(args);
-            return remote;
+            return new RemoteInvokeMethod(args);
         }
 
         public RemoteInvokeMethod Leave(LobbyInfo lobby)
@@ -343,18 +298,13 @@ namespace Server
                 Lobbies.Remove(lobby.Name);
             }
 
-            var args = new List<SerializableType>();
-            foreach (var user in Lobbies[roomName].Players)
+            var args = Lobbies[roomName].Players.Select(user => new Gambler
             {
-                var lobbyUser = new Gambler
-                {
-                    Name = user.Name,
-                    Id = user.Id,
-                    Slot = user.Slot,
-                    Response = Response.Succed.ToString()
-                };
-                args.Add(lobbyUser);
-            }
+                Name = user.Name,
+                Id = user.Id,
+                Slot = user.Slot,
+                Response = Response.Succed.ToString()
+            }).Cast<SerializableType>().ToList();
 
             //Sync Lobby
             var response = new RemoteInvokeMethod(Command.SyncLobby, args);
@@ -372,27 +322,23 @@ namespace Server
         {
             var roomName = lobby.Name;
 
-            var args = new List<SerializableType>();
-
             var board = new BoardBehavior(12, 7);
             foreach (var player in Lobbies[roomName].Players)
             {
-                board.players.Add(player);
+                board.Players.Add(player);
             }
             Games.Add(roomName, board);
 
-            foreach (Player player in Lobbies[roomName].Players)
+            var args = Lobbies[roomName].Players.Select(player => new Gambler
             {
-                var user = new Gambler();
-                user.Id = player.Id;
-                user.Name = player.Name;
-                user.Slot = player.Slot;
-                args.Add(user);
-            }
+                Id = player.Id,
+                Name = player.Name,
+                Slot = player.Slot
+            }).Cast<SerializableType>().ToList();
 
             var response = new RemoteInvokeMethod(Command.Start, args);
             var bytes = RemoteInvokeMethod.WriteToStream(response);
-            foreach (Player player in Lobbies[roomName].Players)
+            foreach (var player in Lobbies[roomName].Players)
             {
                 player.Sock.Send(bytes, bytes.Length, 0);
             }
@@ -417,4 +363,5 @@ namespace Server
             return remote;
         }*/
     }
+
 }

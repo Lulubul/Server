@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using NetworkTypes;
 
 namespace Server
 {
@@ -23,11 +24,9 @@ namespace Server
             for (var i = 0; i < MaxPlayers; i++ )
             {
                 var index = Players.FindIndex(x => x.Slot == i);
-                if (index < 0)
-                {
-                    slot = i;
-                    break;
-                }
+                if (index >= 0) continue;
+                slot = i;
+                break;
             }
             return slot;
         }
@@ -38,11 +37,9 @@ namespace Server
             for (var i = 0; i < MaxPlayers; i++)
             {
                 var index = Players.FindIndex(x => x.Slot == i && x.Team == team);
-                if (index < 0)
-                {
-                    slot = i;
-                    break;
-                }
+                if (index >= 0) continue;
+                slot = i;
+                break;
             }
             return slot;
         }

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Models
+namespace NetworkTypes
 {
     [Serializable]
     public class GamePiece : SpacialObject

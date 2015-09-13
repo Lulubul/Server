@@ -4,7 +4,7 @@ using System.Linq;
 using NetworkTypes;
 using PathFinding;
 
-namespace Models
+namespace Server
 {
     public class BoardBehavior
     {
@@ -13,8 +13,8 @@ namespace Models
         private readonly GamePiece _selectedPiece;
         private readonly int _width;
         private readonly int _height;
-        private readonly List<GamePiece> gamePieces;
-        public List<Player> players  = new List<Player>();
+        private readonly List<GamePiece> _gamePieces;
+        public List<Player> Players  = new List<Player>();
 
         public Hero Hero1;
         public Hero Hero2;
@@ -26,7 +26,7 @@ namespace Models
             _width = w;
             _height = h;
             _game = new Game(_width, _height);
-            gamePieces = new List<GamePiece>();
+            _gamePieces = new List<GamePiece>();
             _selectedPiece = new GamePiece(new Point(0, 0));
 
             var meleeCreature = new AbstractCreature
@@ -73,13 +73,12 @@ namespace Models
 
             var heroes = new List<SerializableType> {Hero1};
             heroes.AddRange(Hero1.Creatures);
-
             heroes.Add(Hero2);
             heroes.AddRange(Hero2.Creatures);
 
-            RemoteInvokeMethod response = new RemoteInvokeMethod("BoardBehavior", Command.SyncHero, heroes);
-            byte[] bytes = RemoteInvokeMethod.WriteToStream(response);
-            foreach (Player client in players)
+            var response = new RemoteInvokeMethod("BoardBehavior", Command.SyncHero, heroes);
+            var bytes = RemoteInvokeMethod.WriteToStream(response);
+            foreach (var client in Players)
             {
                 client.Sock.Send(bytes, bytes.Length, 0);
             }
@@ -90,12 +89,14 @@ namespace Models
         private void FillTable(int x, ref int y, Team team, Hero hero)
         {
             _game.BlockOutTiles(x, y);
-            GamePiece piece = new GamePiece(new Point(x, y));
-            gamePieces.Add(piece);
-            Creature creatureComponent = new Creature();
-            creatureComponent.Piece = piece;
-            creatureComponent.Index = gamePieces.Count;
-            creatureComponent.Team = team;
+            var piece = new GamePiece(new Point(x, y));
+            _gamePieces.Add(piece);
+            var creatureComponent = new Creature
+            {
+                Piece = piece,
+                Index = _gamePieces.Count,
+                Team = team
+            };
             hero.InstanceCreatures.Add(creatureComponent);
             y -= 2;
         }
@@ -119,25 +120,24 @@ namespace Models
             tile.CanSelect = true;
         }
 
-        public void Move(Point Location, Point pointStart, Point pointDestination)
+        public void Move(Point location, Point pointStart, Point pointDestination)
         {
-            _selectedPiece.Location = Location;
+            _selectedPiece.Location = location;
 
-            Tile start = _game.AllTiles.Single(o => o.X == pointStart.X && o.Y == pointStart.Y);
-            Tile destination = _game.AllTiles.Single(o => o.X == pointDestination.X && o.Y == pointDestination.Y);
+            var start = _game.AllTiles.Single(o => o.X == pointStart.X && o.Y == pointStart.Y);
+            var destination = _game.AllTiles.Single(o => o.X == pointDestination.X && o.Y == pointDestination.Y);
+            var path = OnGameStateChanged(location, start, destination);
 
-            IEnumerable<Tile> path = OnGameStateChanged(Location, start, destination);
-
-            List<SerializableType> responsePath = new List<SerializableType>();
-            foreach (Tile tile in path)
+            var responsePath = new List<SerializableType>();
+            foreach (var tile in path)
             {
                 Point spacial = new Point(tile.Location.X, tile.Location.Y);
                 responsePath.Add(spacial);
             }
 
-            RemoteInvokeMethod response = new RemoteInvokeMethod("BoardBehavior", Command.Move, responsePath);
-            byte[] bytes = RemoteInvokeMethod.WriteToStream(response);
-            foreach (Player client in players)
+            var response = new RemoteInvokeMethod("BoardBehavior", Command.Move, responsePath);
+            var bytes = RemoteInvokeMethod.WriteToStream(response);
+            foreach (var client in Players)
             {
                 client.Sock.Send(bytes, bytes.Length, 0);
             }
@@ -145,16 +145,18 @@ namespace Models
 
         public void FinishAction()
         {
-            Creature _currentCreature = _round.NextCreature();
-            List<SerializableType> turns = new List<SerializableType>();
-            NextTurn turn = new NextTurn();
-            turn.Team = _currentCreature.Team.ToString();
-            turn.CreaturePoint = new Point(_currentCreature.Piece.Location.X, _currentCreature.Piece.Location.Y);
+            var _currentCreature = _round.NextCreature();
+            var turns = new List<SerializableType>();
+            var turn = new NextTurn
+            {
+                Team = _currentCreature.Team.ToString(),
+                CreaturePoint = new Point(_currentCreature.Piece.Location.X, _currentCreature.Piece.Location.Y)
+            };
             turns.Add(turn);
-            RemoteInvokeMethod response = new RemoteInvokeMethod("BoardBehavior", Command.ChangeTurn, turns);
-            byte[] bytes = RemoteInvokeMethod.WriteToStream(response);
+            var response = new RemoteInvokeMethod("BoardBehavior", Command.ChangeTurn, turns);
+            var bytes = RemoteInvokeMethod.WriteToStream(response);
 
-            foreach (Player client in players.Where(x => x.team == _currentCreature.Team))
+            foreach (var client in Players.Where(x => x.Team == _currentCreature.Team))
             {
                 client.Sock.Send(bytes, bytes.Length, 0);
             }

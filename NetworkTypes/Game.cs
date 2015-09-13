@@ -1,9 +1,10 @@
-﻿using System.Collections.Generic;
+﻿
+using System.Collections.Generic;
 using System.Linq;
 
-namespace Models
+namespace NetworkTypes
 {
-    class Game
+    public class Game
     {
         public Tile[,] GameBoard;
         public IEnumerable<GamePiece> GamePieces;

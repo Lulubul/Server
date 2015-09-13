@@ -1,4 +1,4 @@
-﻿namespace Models
+﻿namespace NetworkTypes
 {
     public enum CreatureType { Melee, Range }
     public enum CreatureStatus { Alive, Death }

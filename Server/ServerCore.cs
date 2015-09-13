@@ -1,17 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Server
+﻿namespace Server
 {
     public class ServerCore
     {
         public Network Network;
-        public void Start()
+        public ServerCore()
         {
             Network = Network.Instance;
+        }
+
+        public void Start()
+        {
+            Network.StartListening();
         }
     }
 }

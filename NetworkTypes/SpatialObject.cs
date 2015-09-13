@@ -1,6 +1,4 @@
-﻿using NetworkTypes;
-
-namespace Models
+﻿namespace NetworkTypes
 {
     public abstract class SpacialObject : SerializableType
     {
