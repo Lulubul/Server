@@ -1,0 +1,6 @@
+packages/
+*/obj/Debug/
+*/bin/Debug/
+*/Properties/
+*.csproj
+*.sln
