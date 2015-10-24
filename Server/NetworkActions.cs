@@ -93,18 +93,16 @@ namespace Server
             var user = _userRepository.Get(name, pass);
             var args = new List<SerializableType>();
             var gambler = new Gambler();
+            args.Add(gambler);
             if (user == null)
             {
                 gambler.Response = Response.Fail.ToString();
+                return new RemoteInvokeMethod(args);
             }
-            else
-            {
-                gambler.Name = user.Username;
-                gambler.Id = user.Id;
-                gambler.Response = Response.Succed.ToString();
-                AddLobbyRooms(args);
-            }
-            args.Add(gambler);
+            gambler.Name = user.Username;
+            gambler.Id = user.Id;
+            gambler.Response = Response.Succed.ToString();
+            AddLobbyRooms(args);
             return new RemoteInvokeMethod(args);
         }
 
@@ -358,12 +356,15 @@ namespace Server
 
         public void InitializeBoard(SimpleMessage message)
         {
-            Games[message.Message].Initialize();
+            if (message.Message != null && Games.ContainsKey(message.Message))
+            {
+                Games[message.Message].Initialize();
+            }
         }
 
         public void Disconnect(string[] fields)
         {
-            /*var creatorId = int.Parse(fields[0]);
+            var creatorId = int.Parse(fields[0]);
             var player = Players.Find(x => x.Id == creatorId);
             Lobbies[player.Lobby].Players.Remove(player);
             if (Lobbies[player.Lobby].Players.Count < 1)
@@ -373,8 +374,8 @@ namespace Server
             var args = new string[1];
             args[0] = Response.Succed.ToString();
             //switch case : state 
-            var remote = new RemoteInvokeMethod();
-            return remote;*/
+            var remote = new RemoteInvokeMethod(new List<SerializableType>());
+            return remote;
         }
     }
 

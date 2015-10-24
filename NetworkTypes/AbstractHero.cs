@@ -21,12 +21,9 @@ namespace NetworkTypes
         public HeroType Type { get; set; }
         public List<AbstractCreature> Creatures { get; set; }
 
-        public AbstractHero(HeroType heroType, HeroRace race, string name)
+        public AbstractHero()
         {
             //TO:DO move in database
-            Race = race;
-            Type = heroType;
-            Name = name;
             Damage = 10;
             Luck = 10;
             Range = 10;
