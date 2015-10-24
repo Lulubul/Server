@@ -23,7 +23,8 @@
         ChangeTurn,
         FinishAction,
         Turn,
-        SyncHero
+        SyncHero,
+        InitializeBoard
     };
 
     public enum Response
@@ -52,5 +53,10 @@
         Lobby,
         Play
     }
+
+    public enum HeroRace { Human, Orc };
+    public enum HeroType { Might, Magic }
+    public enum CreatureType { Melee, Range }
+    public enum CreatureStatus { Alive, Death }
 
 }

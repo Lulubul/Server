@@ -1,70 +1,102 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 
 namespace NetworkTypes
 {
     public class SerializableType
     {
-        private BinaryWriter _binaryWriter;
-
-        public void Serialize(BinaryWriter writer, Type type)
-        {
-            _binaryWriter = writer;
-            foreach (var propertyInfo in type.GetProperties())
-            {
-                WriteList(propertyInfo.GetValue(this, null));
-            }
-        }
-
-        public void Deserialize(BinaryReader reader, Type type)
+        public void Serialize(BinaryWriter writer, Type type, object parent)
         {
             foreach (var propertyInfo in type.GetProperties())
             {
-                var methodName = "Read" + propertyInfo.PropertyType.ToString().Split('.')[1];
-                var value = typeof(BinaryReader).GetMethod(methodName).Invoke(reader, null);
-                propertyInfo.SetValue(this, value, null);
+                if (propertyInfo.PropertyType.IsGenericType)
+                {
+                    var genericArguments = propertyInfo.PropertyType.GetGenericArguments();
+                    var values = propertyInfo.GetValue(parent, null) as IList;
+                    writer.Write(values.Count);
+                    foreach (var item in values)
+                    {
+                        Serialize(writer, genericArguments[0], item as SerializableType);
+                    }
+                    return;
+                }
+                if (propertyInfo.PropertyType.IsEnum)
+                {
+                    var enumValue = Convert.ToInt32(propertyInfo.GetValue(parent, null));
+                    writer.Write(enumValue);
+                    continue;
+                }
+                if (typeof(SerializableType).IsAssignableFrom(propertyInfo.PropertyType))
+                {
+                    Serialize(writer, propertyInfo.PropertyType, propertyInfo.GetValue(parent, null));
+                    return;
+                }
+                ToBinary(writer, propertyInfo, parent);
             }
         }
 
-        public void WriteList (object value)
+        public void ToBinary(BinaryWriter writer, PropertyInfo propertyInfo, object item)
         {
-            switch (Type.GetTypeCode(value.GetType()))
+            var value = propertyInfo.GetValue(item, null);
+            if (value != null)
             {
-                case TypeCode.Boolean:
-                    _binaryWriter.Write((bool)(object)value);
-                    break;
-                case TypeCode.Byte:
-                    _binaryWriter.Write((byte)(object)value);
-                    break;
-                case TypeCode.Char:
-                    _binaryWriter.Write((char)(object)value);
-                    break;
-                case TypeCode.Decimal:
-                    _binaryWriter.Write((decimal)(object)value);
-                    break;
-                case TypeCode.Double:
-                    _binaryWriter.Write((double)(object)value);
-                    break;
-                case TypeCode.Single:
-                    _binaryWriter.Write((float)(object)value);
-                    break;
-                case TypeCode.Int16:
-                    _binaryWriter.Write((short)(object)value);
-                    break;
-                case TypeCode.Int32:
-                    _binaryWriter.Write((int)(object)value);
-                    break;
-                case TypeCode.Int64:
-                    _binaryWriter.Write((short)(object)value);
-                    break;
-                case TypeCode.String:
-                    _binaryWriter.Write((string)(object)value);
-                    break;
-                case TypeCode.SByte:
-                    _binaryWriter.Write((sbyte)(object)value);
-                    break;
-                default:
-                    throw new ArgumentException("List type not supported");
+                typeof(BinaryWriter)
+                .GetMethod("Write", new[] { propertyInfo.PropertyType })
+                .Invoke(writer, new[] { value });
+            }
+        }
+
+        public void Deserialize(BinaryReader reader, Type type, object parent)
+        {
+            foreach (var propertyInfo in type.GetProperties())
+            {
+                if (propertyInfo.PropertyType.IsGenericType)
+                {
+                    FillCollection(propertyInfo, parent, reader);
+                    return;
+                }
+                if (typeof(SerializableType).IsAssignableFrom(propertyInfo.PropertyType))
+                {
+                    var item = Activator.CreateInstance(propertyInfo.PropertyType);
+                    propertyInfo.SetValue(parent, item, null);
+                    Deserialize(reader, propertyInfo.PropertyType, item);
+                    return;
+                }
+
+                SetProperty(propertyInfo, parent, reader);
+            }
+        }
+
+        private void FillCollection(PropertyInfo propertyInfo, object parent, BinaryReader reader)
+        {
+            var count = reader.ReadInt32();
+            var argumentType = propertyInfo.PropertyType.GetGenericArguments()[0];
+            var list = propertyInfo.GetValue(parent, null) as IList;
+            for (var i = 0; i < count; i++)
+            {
+                var item = Activator.CreateInstance(argumentType);
+                if (list == null) continue;
+                list.Add(item);
+                Deserialize(reader, argumentType, item);
+            }
+        }
+
+        private static void SetProperty(PropertyInfo propertyInfo, object parent, BinaryReader reader)
+        {
+            if (propertyInfo.PropertyType.IsEnum)
+            {
+                var enumValue = reader.ReadInt32();
+                propertyInfo.SetValue(parent, Enum.ToObject(propertyInfo.PropertyType, enumValue), null);
+                return;
+            }
+            var methodName = "Read" + propertyInfo.PropertyType.ToString().Split('.')[1];
+            var value = typeof(BinaryReader).GetMethod(methodName).Invoke(reader, null);
+            if (value != null)
+            {
+                propertyInfo.SetValue(parent, value, null);
             }
         }
     }

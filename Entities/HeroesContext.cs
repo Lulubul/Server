@@ -1,9 +1,7 @@
+using System.Data.Entity;
+
 namespace Entities
 {
-    using System;
-    using System.Data.Entity;
-    using System.ComponentModel.DataAnnotations.Schema;
-    using System.Linq;
 
     public partial class HeroesContext : DbContext
     {
@@ -11,7 +9,6 @@ namespace Entities
             : base("name=HeroesContext")
         {
             Configuration.LazyLoadingEnabled = false;
-            Configuration.ProxyCreationEnabled = false;
         }
 
         public virtual DbSet<User> Users { get; set; }

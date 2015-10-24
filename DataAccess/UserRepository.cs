@@ -2,22 +2,17 @@
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
+using System.Runtime.Remoting.Contexts;
 using Entities;
 
 namespace DataAccess
 {
-    public class UserRepository : Repository
+    public class UserRepository
     {
         private readonly HeroesContext _context;
-
-        public UserRepository(HeroesContext dbContext)
+        public UserRepository(HeroesContext context)
         {
-            _context = dbContext;
-        }
-
-        public IEnumerable<User> Get()
-        {
-            return _context.Users;
+            _context = context;
         }
 
         public User Get(string username, string password)
@@ -25,10 +20,15 @@ namespace DataAccess
             return _context.Users.FirstOrDefault(u => u.Username == username && u.Password == password);
         }
 
-        public int Add(string username, string password)
+        public User Add(string username, string password)
         {
-            _context.Users.Add(new User() {Username = username, Password = password});
-            return _context.SaveChanges();
+            var user = _context.Users.Add(new User
+            {
+                Username = username,
+                Password = password
+            });
+            _context.SaveChanges();
+            return user;
         }
     }
 }

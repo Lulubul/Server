@@ -15,7 +15,11 @@ namespace Server
         public Dictionary<string, BoardBehavior> Games;
 
         private readonly Type _type;
+        private readonly Repository _repository;
         private readonly UserRepository _userRepository;
+
+        private const int BoardSizeWidth = 12;
+        private const int BoardSizeHeight = 7;
 
         public NetworkActions()
         {
@@ -23,10 +27,9 @@ namespace Server
             History = new Dictionary<Player, string>();
             Players = new List<Player>();
             Games = new Dictionary<string, BoardBehavior>();
-
+            _repository = new Repository();
+            _userRepository = _repository.Users;
             _type = GetType();
-            var repository = new Repository();
-            _userRepository = repository.Users;
         }
 
         public void Execute(Command command, string serviceClassName, List<SerializableType> parameters, Player client)
@@ -90,7 +93,6 @@ namespace Server
             var user = _userRepository.Get(name, pass);
             var args = new List<SerializableType>();
             var gambler = new Gambler();
-
             if (user == null)
             {
                 gambler.Response = Response.Fail.ToString();
@@ -118,7 +120,7 @@ namespace Server
         {
             var username = authentification.Name;
             var password = authentification.Pass;
-            var id = _userRepository.Add(username, password);
+            var id = _userRepository.Add(username, password).Id;
             var args = new List<SerializableType>();
             var gambler = new Gambler
             {
@@ -158,12 +160,11 @@ namespace Server
             {
                 var index = Players.FindIndex(x => x.Id == creatorId);
                 var newLobby = new Lobby(lobbyName, creatorId, maxPlayer, room.GameType);
-                var player = Players[index];
-                player.Team = Team.Red;
-                player.Lobby = lobbyName;
-                player.State = State.Join;
-                player.Slot = 0;
-                newLobby.Players.Add(player);
+                Players[index].Team = Team.Red;
+                Players[index].Lobby = lobbyName;
+                Players[index].State = State.Join;
+                Players[index].Slot = 0;
+                newLobby.Players.Add(Players[index]);
                 Lobbies.Add(lobbyName, newLobby);
 
                 var message = new ResponseMessage
@@ -278,11 +279,11 @@ namespace Server
 
             var response = new RemoteInvokeMethod(Command.SyncLobby, args);
             var bytes = RemoteInvokeMethod.WriteToStream(response);
-            foreach (var user in Lobbies[roomName].Players)
+            var clients = Players.Where(client => client.Lobby == roomName);
+            foreach (var client in clients)
             {
-                user.Sock.Send(bytes, bytes.Length, 0);
+                client.Sock.Send(bytes, bytes.Length, 0);
             }
-
             return new RemoteInvokeMethod(args);
         }
 
@@ -291,14 +292,27 @@ namespace Server
             var playerId = lobby.PlayerId;
             var player = Players.Find(x => x.Id == playerId);
             player.State = State.Lobby;
-            var roomName = lobby.Name;
-            Lobbies[player.Lobby].Players.Remove(player);
-            if (Lobbies[player.Lobby].Players.Count < 1)
+            Lobbies[lobby.Name].Players.Remove(player);
+            if (Lobbies[lobby.Name].Players.Count < 1)
             {
                 Lobbies.Remove(lobby.Name);
+                var remainsLobbies = new List<SerializableType>();
+                foreach (var l in Lobbies.Values )
+                {
+                    remainsLobbies.Add(new LobbyInfo()
+                    {
+                        PlayerId = l.CreatorId,
+                        Name = l.Name,
+                        GameType = l.GameType,
+                        MaxPlayers = l.MaxPlayers,
+                        CurrentPlayers = 2
+                    });
+                }
+                var res = new RemoteInvokeMethod(Command.SyncRooms, remainsLobbies);
+                return res;
             }
 
-            var args = Lobbies[roomName].Players.Select(user => new Gambler
+            var args = Lobbies[lobby.Name].Players.Select(user => new Gambler
             {
                 Name = user.Name,
                 Id = user.Id,
@@ -309,20 +323,17 @@ namespace Server
             //Sync Lobby
             var response = new RemoteInvokeMethod(Command.SyncLobby, args);
             var bytes = RemoteInvokeMethod.WriteToStream(response);
-            foreach (var user in Lobbies[roomName].Players)
+            foreach (var user in Lobbies[lobby.Name].Players)
             {
                 user.Sock.Send(bytes, bytes.Length, 0);
             }
-
-            var remote = new RemoteInvokeMethod(args);
-            return remote;
+            return new RemoteInvokeMethod(args);
         }
 
         public void Start(LobbyInfo lobby)
         {
             var roomName = lobby.Name;
-
-            var board = new BoardBehavior(12, 7);
+            var board = new BoardBehavior(BoardSizeWidth, BoardSizeHeight);
             foreach (var player in Lobbies[roomName].Players)
             {
                 board.Players.Add(player);
@@ -333,7 +344,8 @@ namespace Server
             {
                 Id = player.Id,
                 Name = player.Name,
-                Slot = player.Slot
+                Slot = player.Slot,
+                Response = Response.Succed.ToString()
             }).Cast<SerializableType>().ToList();
 
             var response = new RemoteInvokeMethod(Command.Start, args);
@@ -342,26 +354,28 @@ namespace Server
             {
                 player.Sock.Send(bytes, bytes.Length, 0);
             }
-
-            board.Initialize();
         }
 
-        /*public RemoteInvokeMethod Disconnect(string[] fields)
+        public void InitializeBoard(SimpleMessage message)
         {
-            int creatorID = Int32.Parse(fields[0]);
-            Player player = players.Find(x => x.ID == creatorID);
-            lobbies[player.Lobby].Players.Remove(player);
-            if (lobbies[player.Lobby].Players.Count < 1)
+            Games[message.Message].Initialize();
+        }
+
+        public void Disconnect(string[] fields)
+        {
+            /*var creatorId = int.Parse(fields[0]);
+            var player = Players.Find(x => x.Id == creatorId);
+            Lobbies[player.Lobby].Players.Remove(player);
+            if (Lobbies[player.Lobby].Players.Count < 1)
             {
-                lobbies.Remove(player.Lobby);
+                Lobbies.Remove(player.Lobby);
             }
-            string[] args = new string[1];
+            var args = new string[1];
             args[0] = Response.Succed.ToString();
-         
             //switch case : state 
-            RemoteInvokeMethod remote = new RemoteInvokeMethod(args);
-            return remote;
-        }*/
+            var remote = new RemoteInvokeMethod();
+            return remote;*/
+        }
     }
 
 }

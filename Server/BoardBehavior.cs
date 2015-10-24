@@ -14,90 +14,95 @@ namespace Server
         private readonly int _width;
         private readonly int _height;
         private readonly List<GamePiece> _gamePieces;
-        public List<Player> Players  = new List<Player>();
-
-        public Hero Hero1;
-        public Hero Hero2;
+        
+        public AbstractHero Hero1;
+        public AbstractHero Hero2;
+        public List<Player> Players = new List<Player>();
 
         public BoardBehavior(int w, int h)
         {
-            Hero1 = new Hero("Hero1");
-            Hero2 = new Hero("Hero2");
             _width = w;
             _height = h;
             _game = new Game(_width, _height);
             _gamePieces = new List<GamePiece>();
             _selectedPiece = new GamePiece(new Point(0, 0));
-
-            var meleeCreature = new AbstractCreature
-            {
-                Type = CreatureType.Melee,
-                Name = "Orc"
-            };
-            var rangeCreature = new AbstractCreature
-            {
-                Type = CreatureType.Range,
-                Name = "Orchy"
-            };
-
-            Hero1.Creatures.Add(rangeCreature);
-            Hero1.Creatures.Add(meleeCreature);
-
-            Hero2.Creatures.Add(rangeCreature);
-            Hero2.Creatures.Add(meleeCreature);
         }
 
         public void Initialize()
         {
-            InstantiateCreature(Hero1.Creatures.Count, Hero2.Creatures.Count);
+            InstantiateHeroes(HeroType.Magic, HeroRace.Human, HeroType.Might, HeroRace.Orc);
+            InstantiateCreature(2, 4);
+        }
+
+        private void InstantiateHeroes(HeroType heroType1, HeroRace race1, HeroType heroType2, HeroRace race2)
+        {
+            Hero1 = new AbstractHero(heroType1, race1, "aurica");
+            Hero2 = new AbstractHero(heroType2, race2, "silviu");
         }
 
         private void InstantiateCreature(int countRed, int countBlue)
         {
             int x = 0, y = _height - 1;
-            
+            var creatureTypesHero1 = new List<CreatureType>
+            {
+                CreatureType.Melee,
+                CreatureType.Melee
+            };
             for (var i = 0; i < countRed; i++)
             {
-                FillTable(x, ref y, Team.Red, Hero1);
+                FillTable(x, ref y, Team.Red, Hero1, creatureTypesHero1[i]);
             }
 
             x = _width - 1;
             y = _height - 1;
-            
+            var creatureTypes = new List<CreatureType>
+            {
+                CreatureType.Melee,
+                CreatureType.Range,
+                CreatureType.Melee,
+                CreatureType.Melee
+            };
             for (var i = 0; i < countBlue; i++)
             {
-                FillTable(x, ref y, Team.Blue, Hero2);
+                FillTable(x, ref y, Team.Blue, Hero2, creatureTypes[i]);
             }
 
             _round = new Round(Hero1, Hero2);
+            var board = new BoardInfo
+            {
+                Height = 7,
+                Width = 12,
+                HexWidth = 4f,
+                Spacing = 3.46f
+            };
 
-            var heroes = new List<SerializableType> {Hero1};
-            heroes.AddRange(Hero1.Creatures);
-            heroes.Add(Hero2);
-            heroes.AddRange(Hero2.Creatures);
-
-            var response = new RemoteInvokeMethod("BoardBehavior", Command.SyncHero, heroes);
+            var heroes = new List<SerializableType> {board, Hero1, Hero2 };
+            var response = new RemoteInvokeMethod("BoardBehaviorMultiplayer", Command.SyncHero, heroes);
             var bytes = RemoteInvokeMethod.WriteToStream(response);
             foreach (var client in Players)
             {
                 client.Sock.Send(bytes, bytes.Length, 0);
             }
 
-            FinishAction();
-        }   
+            //FinishAction();
+        }
 
-        private void FillTable(int x, ref int y, Team team, Hero hero)
+        private void FillTable(int x, ref int y, Team team, AbstractHero hero, CreatureType creatureType)
         {
             _game.BlockOutTiles(x, y);
             var piece = new GamePiece(new Point(x, y));
             _gamePieces.Add(piece);
-            var creatureComponent = new Creature
+
+            var creatureComponent = new AbstractCreature()
             {
-                Piece = piece,
+                Type = creatureType,
+                Name = "Orc",
+                Piece = piece.Location,
                 Index = _gamePieces.Count,
                 Team = team
             };
-            hero.InstanceCreatures.Add(creatureComponent);
+
+            hero.Creatures.Add(creatureComponent);
             y -= 2;
         }
 
@@ -127,14 +132,7 @@ namespace Server
             var start = _game.AllTiles.Single(o => o.X == pointStart.X && o.Y == pointStart.Y);
             var destination = _game.AllTiles.Single(o => o.X == pointDestination.X && o.Y == pointDestination.Y);
             var path = OnGameStateChanged(location, start, destination);
-
-            var responsePath = new List<SerializableType>();
-            foreach (var tile in path)
-            {
-                Point spacial = new Point(tile.Location.X, tile.Location.Y);
-                responsePath.Add(spacial);
-            }
-
+            var responsePath = path.Select(tile => new Point(tile.Location.X, tile.Location.Y)).Cast<SerializableType>().ToList();
             var response = new RemoteInvokeMethod("BoardBehavior", Command.Move, responsePath);
             var bytes = RemoteInvokeMethod.WriteToStream(response);
             foreach (var client in Players)
@@ -145,18 +143,18 @@ namespace Server
 
         public void FinishAction()
         {
-            var _currentCreature = _round.NextCreature();
+            var currentCreature = _round.NextCreature();
             var turns = new List<SerializableType>();
             var turn = new NextTurn
             {
-                Team = _currentCreature.Team.ToString(),
-                CreaturePoint = new Point(_currentCreature.Piece.Location.X, _currentCreature.Piece.Location.Y)
+                Team = currentCreature.Team.ToString(),
+                CreaturePoint = new Point(currentCreature.Piece.X, currentCreature.Piece.Y)
             };
             turns.Add(turn);
             var response = new RemoteInvokeMethod("BoardBehavior", Command.ChangeTurn, turns);
             var bytes = RemoteInvokeMethod.WriteToStream(response);
 
-            foreach (var client in Players.Where(x => x.Team == _currentCreature.Team))
+            foreach (var client in Players.Where(x => x.Team == currentCreature.Team))
             {
                 client.Sock.Send(bytes, bytes.Length, 0);
             }
@@ -164,7 +162,7 @@ namespace Server
 
         public void Defend(int index)
         {
-            Hero1.InstanceCreatures[index].Armor += 10;
+            //Hero1.Creatures[index].Armor += 10;
             FinishAction();
         }
     }

@@ -1,73 +1,24 @@
 ﻿namespace NetworkTypes
 {
+
     public class AbstractCreature : SerializableType
     {
+        #region Fields
+        public float Damage { get; set; }
+        public float Luck { get; set; }
+        public string Name { get; set; }
+        public float Range { get; set; }
+        public float Health { get; set; }
+        public int MaxHealth { get; set; }
+        public int Speed { get; set; }
+        public int Count { get; set; }
+        public int Armor { get; set; }
+        #endregion
         public CreatureType Type { get; set; }
         public Team Team { get; set; }
-        #region Fields
-        private float _damage;
-        public float Damage
-        {
-            get { return _damage; }
-            set { _damage = value; }
-        }
-
-        private float _luck;
-        public float Luck
-        {
-            get { return _luck; }
-            set { _luck = value; }
-        }
-
-        private float _range;
-        public float Range
-        {
-            get { return _range; }
-            set { _range = value; }
-        }
-
-        private int _speed;
-        public int Speed
-        {
-            get { return _speed; }
-            set { _speed = value; }
-        }
-
-        private string _name;
-        public string Name
-        {
-            get { return _name; }
-            set { _name = value; }
-        }
-
-        private int _maxhealth;
-        public int MaxHealth
-        {
-            get { return _maxhealth; }
-            set { _maxhealth = value; }
-        }
-
-        private float _health;
-        public float Health
-        {
-            get { return _health; }
-            set { _health = value; }
-        }
-
-        private int _count;
-        public int Count
-        {
-            get { return _count; }
-            set { _count = value; }
-        }
-
-        private int _armor;
-        public int Armor
-        {
-            get { return _armor; }
-            set { _armor = value; }
-        }
-        #endregion
+        public CreatureStatus Status { get; set; }
+        public int Index { get; set; }
+        public Point Piece { get; set; }
 
         public AbstractCreature() {
             //TODO: Move this in config file

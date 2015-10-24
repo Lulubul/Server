@@ -1,4 +1,10 @@
-﻿namespace Server
+﻿using System;
+using DataAccess;
+using Entities;
+using NetworkTypes;
+using System.Data.Entity;
+
+namespace Server
 {
     class Program
     {

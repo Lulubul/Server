@@ -5,12 +5,12 @@ using NetworkTypes;
 
 namespace Server
 {
-    [Serializable]
     public class RemoteInvokeMethod
     {
         public string ServiceClassName { get; set; }
         public string MethodName { get; set; }
         public List<SerializableType> Parameters { get; set; }
+        public static readonly string AssemblyName = "NetworkTypes";
 
         public RemoteInvokeMethod(List<SerializableType> parameters)
         {
@@ -51,7 +51,7 @@ namespace Server
             {
                 var type = parameter.GetType();
                 writer.Write(type.ToString());
-                parameter.Serialize(writer, type);
+                parameter.Serialize(writer, type, parameter);
             }
             return stream.GetBuffer();
         }
@@ -67,12 +67,10 @@ namespace Server
             var parameters = new List<SerializableType>();
             for (var i = 0; i < paramsCount; i++)
             {
-                var type = reader.ReadString();
+                var type = reader.ReadString() + ", " + AssemblyName;
                 var objectType = Type.GetType(type);
-                if (objectType == null) continue;
                 var item = Activator.CreateInstance(objectType) as SerializableType;
-                if (item == null) continue;
-                item.Deserialize(reader, objectType);
+                item.Deserialize(reader, objectType, item);
                 parameters.Add(item);
             }
             var instance = new RemoteInvokeMethod(className, methodName, parameters);

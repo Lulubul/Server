@@ -1,6 +1,6 @@
 ﻿namespace NetworkTypes
 {
-    public abstract class SpacialObject : SerializableType
+    public abstract class SpacialObject 
     {
         private Point _location;
         public Point Location

@@ -9,8 +9,8 @@ namespace DataAccess
 {
     public class Repository
     {
-        private UserRepository _userRepository;
         private readonly HeroesContext _context;
+        private static UserRepository _userRepository;
 
         public Repository()
         {
@@ -19,7 +19,8 @@ namespace DataAccess
 
         public UserRepository Users
         {
-            get { return _userRepository ?? (_userRepository = new UserRepository(_context)); }
+            get { return _userRepository = _userRepository ?? new UserRepository(_context); }
         }
+
     }
 }

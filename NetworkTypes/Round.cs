@@ -1,42 +1,44 @@
-﻿namespace NetworkTypes
+﻿using System.Collections.Generic;
+using System.Linq;
+
+namespace NetworkTypes
 {
     public class Round
     {
-        private readonly Turn _turn1;
-        private readonly Turn _turn2;
-        private Turn _currentTurn;
+        private readonly Dictionary<bool, LinkedList<AbstractCreature>> _creaturesDictionary = new Dictionary<bool, LinkedList<AbstractCreature>>();
+        private readonly Turn _currentTurn;
+        private readonly Dictionary<bool, Turn> _turns = new Dictionary<bool, Turn>();
+        private bool _isFirstHero = true;
 
-        public Round(Hero h1, Hero h2)
+        public Round(AbstractHero h1, AbstractHero h2)
         {
-            _turn1 = new Turn(h1, 1);
-            _turn2 = new Turn(h2, 2);
-            _currentTurn = _turn2;
+            _creaturesDictionary.Add(true, new LinkedList<AbstractCreature>(h1.Creatures));
+            _creaturesDictionary.Add(false, new LinkedList<AbstractCreature>(h2.Creatures));
+            _turns.Add(true, new Turn(true, _creaturesDictionary[true].First));
+            _turns.Add(false, new Turn(false, _creaturesDictionary[false].First));
         }
 
-        public Creature NextCreature()
+        public AbstractCreature NextCreature()
         {
-            if (_currentTurn.PlayerOrder == 1)
+            _isFirstHero = !_isFirstHero;
+            while (_turns[_isFirstHero].Creature.NextOrFirst().Value.Status == CreatureStatus.Death)
             {
-                _currentTurn = _turn2;
+                _turns[_isFirstHero].Creature = _turns[_isFirstHero].Creature.NextOrFirst();
             }
-            else if (_currentTurn.PlayerOrder == 2)
-            {
-                _currentTurn = _turn1;
-            }
+            return _turns[_isFirstHero].Creature.Value;
+        }
+    }
 
-            var creature = _currentTurn.CurrentHero.InstanceCreatures[_currentTurn.Index];
-            var find = false;
-            while (_currentTurn.CurrentHero.InstanceCreatures[_currentTurn.Index].Status == CreatureStatus.Death)
-            {
-                _currentTurn.Index = (byte)((_currentTurn.Index + 1) % _currentTurn.MaxCreature);
-                find = true;
-            }
+    static class CircularLinkedList
+    {
+        public static LinkedListNode<AbstractCreature> NextOrFirst(this LinkedListNode<AbstractCreature> current)
+        {
+            return current.Next ?? current.List.First;
+        }
 
-            if (find == false)
-            {
-                _currentTurn.Index = (byte)((_currentTurn.Index + 1) % _currentTurn.MaxCreature);
-            }
-            return creature;
+        public static LinkedListNode<AbstractCreature> PreviousOrLast(this LinkedListNode<AbstractCreature> current)
+        {
+            return current.Previous ?? current.List.Last;
         }
     }
 }
