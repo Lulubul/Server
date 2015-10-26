@@ -5,7 +5,6 @@ namespace NetworkTypes
     public class Round
     {
         private readonly Dictionary<bool, LinkedList<AbstractCreature>> _creaturesDictionary = new Dictionary<bool, LinkedList<AbstractCreature>>();
-        private readonly Turn _currentTurn;
         private readonly Dictionary<bool, Turn> _turns = new Dictionary<bool, Turn>();
         private bool _isFirstHero = true;
 

@@ -18,6 +18,7 @@ namespace Server
         public AbstractHero Hero1;
         public AbstractHero Hero2;
         public List<Player> Players = new List<Player>();
+        public bool IsInitialize;
 
         private readonly IDataCollector _gameInformations = new MockDataCollector();
 
@@ -32,6 +33,7 @@ namespace Server
 
         public void Initialize()
         {
+            IsInitialize = true;
             InstantiateHeroes(_gameInformations.GetHeroes());
             InstantiateCreature(_gameInformations.GetCreatures());
         }
@@ -44,61 +46,41 @@ namespace Server
 
         private void InstantiateCreature(IEnumerable<AbstractCreature> creatures)
         {
-            int x = 0, y = _height - 1;
+            var y = _height - 1;
             var creatureGroup = creatures.GroupBy(g => g.Team).ToDictionary(h => h.Key, h => h.ToList());
-
-            foreach (var creature in creatureGroup[Team.Red])
-            {
-                FillTable(x, ref y, Hero1, creature);
-            }
-
-            x = _width - 1;
-            y = _height - 1;
-
-            foreach (var creature in creatureGroup[Team.Blue])
-            {
-                FillTable(x, ref y, Hero2, creature);
-            }
-
+            FillTable(0, y, Hero1, creatureGroup[Team.Red]);
+            FillTable(_width - 1, _height - 1, Hero2, creatureGroup[Team.Blue]);
             _round = new Round(Hero1, Hero2);
-            var board = new BoardInfo
-            {
-                Height = 7,
-                Width = 12,
-                HexWidth = 4f,
-                Spacing = 3.46f
-            };
-
-            var heroes = new List<SerializableType> {board, Hero1, Hero2 };
-            var response = new RemoteInvokeMethod("BoardBehaviorMultiplayer", Command.SyncHero, heroes);
-            var bytes = RemoteInvokeMethod.WriteToStream(response);
-            foreach (var client in Players)
-            {
-                client.Sock.Send(bytes, bytes.Length, 0);
-            }
         }
 
-        private void FillTable(int x, ref int y, AbstractHero hero, AbstractCreature creatureComponent)
+        public void SendHeroesToClient()
         {
-            _game.BlockOutTiles(x, y);
-            var piece = new GamePiece(new Point(x, y));
-            _gamePieces.Add(piece);
-            creatureComponent.Piece = piece.Location;
-            creatureComponent.Index = _gamePieces.Count;
-            hero.Creatures.Add(creatureComponent);
-            y -= 2;
+            var board = _gameInformations.GetBoardInfo();
+            NetworkActions.SendMessageToClients(Players, Command.SyncHero, new List<SerializableType> { board, Hero1, Hero2 });
+        }
+
+        private void FillTable(int x, int y, AbstractHero hero, IEnumerable<AbstractCreature> creatures)
+        {
+            foreach (var creatureComponent in creatures)
+            {
+                var piece = new GamePiece(new Point(x, y));
+                _gamePieces.Add(piece);
+                _game.BlockOutTiles(x, y);
+                creatureComponent.Piece = piece.Location;
+                creatureComponent.Index = _gamePieces.Count;
+                hero.Creatures.Add(creatureComponent);
+                y -= 2;
+            }
         }
 
         private IEnumerable<Tile> OnGameStateChanged(Point location, Tile start, Tile destination)
         {
             if (_selectedPiece == null) return new List<Tile>();
-            var dp = _selectedPiece;
             Func<Tile, Tile, double> distance = (node1, node2) => 1;
             Func<Tile, double> estimate = t => Math.Sqrt(Math.Pow(t.X - destination.X, 2) + Math.Pow(t.Y - destination.Y, 2));
             _game.GameBoard[location.X, location.Y].CanPass = true;
-            _game.GameBoard[dp.X, dp.Y].CanPass = true;
-            var path = PathFind.FindPath(start, destination, distance, estimate).ToList();
-            return path;
+            _game.GameBoard[_selectedPiece.X, _selectedPiece.Y].CanPass = true;
+            return PathFind.FindPath(start, destination, distance, estimate).ToList();
         }
 
         private void DieCreature(Point location)
@@ -111,17 +93,11 @@ namespace Server
         public void Move(Point location, Point pointStart, Point pointDestination)
         {
             _selectedPiece.Location = location;
-
             var start = _game.AllTiles.Single(o => o.X == pointStart.X && o.Y == pointStart.Y);
             var destination = _game.AllTiles.Single(o => o.X == pointDestination.X && o.Y == pointDestination.Y);
             var path = OnGameStateChanged(location, start, destination);
             var responsePath = path.Select(tile => new Point(tile.Location.X, tile.Location.Y)).Cast<SerializableType>().ToList();
-            var response = new RemoteInvokeMethod("BoardBehavior", Command.Move, responsePath);
-            var bytes = RemoteInvokeMethod.WriteToStream(response);
-            foreach (var client in Players)
-            {
-                client.Sock.Send(bytes, bytes.Length, 0);
-            }
+            NetworkActions.SendMessageToClients(Players, Command.Move, responsePath);
         }
 
         public void FinishAction()
@@ -135,13 +111,7 @@ namespace Server
                     CreatureIndex = currentCreature.Index
                 }
             };
-
-            var response = new RemoteInvokeMethod("BoardBehavior", Command.ChangeTurn, turns);
-            var bytes = RemoteInvokeMethod.WriteToStream(response);
-            foreach (var client in Players)
-            {
-                client.Sock.Send(bytes, bytes.Length, 0);
-            }
+            NetworkActions.SendMessageToClients(Players, Command.ChangeTurn, turns);
         }
 
         public void Defend(int index)
@@ -150,87 +120,4 @@ namespace Server
         }
     }
 
-
-    public interface IDataCollector
-    {
-        List<AbstractHero> GetHeroes();
-        List<AbstractCreature> GetCreatures();
-    }
-
-    public class MockDataCollector : IDataCollector
-    {
-        public List<AbstractHero> GetHeroes()
-        {
-            return new List<AbstractHero>()
-            {
-                new AbstractHero
-                {
-                    Type = HeroType.Magic,
-                    Race = HeroRace.Human,
-                    Name = "Orrin"
-                },
-                new AbstractHero
-                {
-                    Type = HeroType.Might,
-                    Race = HeroRace.Orc,
-                    Name = "Sir Christian"
-                }
-            };
-        }
-
-        public List<AbstractCreature> GetCreatures()
-        {
-            return new List<AbstractCreature>()
-            {
-                new AbstractCreature
-                {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Melee,
-                    Team = Team.Red
-                },
-                new AbstractCreature
-                {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Melee,
-                    Team = Team.Red
-                },
-                new AbstractCreature
-                {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Melee,
-                    Team = Team.Red
-                },
-                new AbstractCreature
-                {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Melee,
-                    Team = Team.Red
-                },
-                new AbstractCreature
-                {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Melee,
-                    Team = Team.Blue
-                },
-                new AbstractCreature
-                {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Range,
-                    Team = Team.Blue
-                },
-                new AbstractCreature
-                {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Melee,
-                    Team = Team.Blue
-                },
-                new AbstractCreature
-                {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Range,
-                    Team = Team.Blue
-                }
-            };
-        }
-    }
 }

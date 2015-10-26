@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using DataAccess;
-using Entities;
 using NetworkTypes;
 
 namespace Server
@@ -76,14 +75,22 @@ namespace Server
             }
         }
 
+        public static void SendMessageToClients(IEnumerable<Player> players, Command command, List<SerializableType> parameters)
+        {
+            var response = new RemoteInvokeMethod("BoardBehaviorMultiplayer", command, parameters);
+            var bytes = RemoteInvokeMethod.WriteToStream(response);
+            foreach (var client in players)
+            {
+                client.Sock.Send(bytes, bytes.Length, 0);
+            }
+        }
+
         public RemoteInvokeMethod Connect()
         {
-            var now = DateTime.Now;
-            var strDateLine = "Welcome " + now.ToString("G");
-            var args = new List<SerializableType>();
-            var message = new SimpleMessage { Message = strDateLine };
-            args.Add(message);
-            return new RemoteInvokeMethod(args);
+            return new RemoteInvokeMethod(new List<SerializableType>()
+            {
+                new SimpleMessage { Message = "Welcome" }
+            });
         }
 
         public RemoteInvokeMethod Login(Authentication authentification)
@@ -108,10 +115,10 @@ namespace Server
 
         public RemoteInvokeMethod Logout(Authentication authentification)
         {
-            var args = new List<SerializableType>();
-            var message = new ResponseMessage { Response = Response.Succed.ToString() };
-            args.Add(message);
-            return new RemoteInvokeMethod(args);
+            return new RemoteInvokeMethod(new List<SerializableType>()
+            {
+                new ResponseMessage { Response = Response.Succed.ToString() }
+            });
         }
 
         public RemoteInvokeMethod Register(Authentication authentification)
@@ -294,20 +301,15 @@ namespace Server
             if (Lobbies[lobby.Name].Players.Count < 1)
             {
                 Lobbies.Remove(lobby.Name);
-                var remainsLobbies = new List<SerializableType>();
-                foreach (var l in Lobbies.Values )
+                var remainsLobbies = Lobbies.Values.Select(l => new LobbyInfo()
                 {
-                    remainsLobbies.Add(new LobbyInfo()
-                    {
-                        PlayerId = l.CreatorId,
-                        Name = l.Name,
-                        GameType = l.GameType,
-                        MaxPlayers = l.MaxPlayers,
-                        CurrentPlayers = 2
-                    });
-                }
-                var res = new RemoteInvokeMethod(Command.SyncRooms, remainsLobbies);
-                return res;
+                    PlayerId = l.CreatorId,
+                    Name = l.Name,
+                    GameType = l.GameType,
+                    MaxPlayers = l.MaxPlayers,
+                    CurrentPlayers = 2
+                }).Cast<SerializableType>().ToList();
+                return new RemoteInvokeMethod(Command.SyncRooms, remainsLobbies);
             }
 
             var args = Lobbies[lobby.Name].Players.Select(user => new Gambler
@@ -346,8 +348,8 @@ namespace Server
                 Response = Response.Succed.ToString()
             }).Cast<SerializableType>().ToList();
 
-            var response = new RemoteInvokeMethod(Command.Start, args);
-            var bytes = RemoteInvokeMethod.WriteToStream(response);
+            var bytes = RemoteInvokeMethod.WriteToStream(new RemoteInvokeMethod(Command.Start, args));
+
             foreach (var player in Lobbies[roomName].Players)
             {
                 player.Sock.Send(bytes, bytes.Length, 0);
@@ -356,26 +358,30 @@ namespace Server
 
         public void InitializeBoard(SimpleMessage message)
         {
-            if (message.Message != null && Games.ContainsKey(message.Message))
+            if (!Games[message.Message].IsInitialize)
             {
                 Games[message.Message].Initialize();
             }
+            Games[message.Message].SendHeroesToClient();
+            
         }
 
-        public void Disconnect(string[] fields)
+        public RemoteInvokeMethod Disconnect(LobbyInfo lobby)
         {
-            var creatorId = int.Parse(fields[0]);
+            var creatorId = lobby.PlayerId;
             var player = Players.Find(x => x.Id == creatorId);
             Lobbies[player.Lobby].Players.Remove(player);
             if (Lobbies[player.Lobby].Players.Count < 1)
             {
                 Lobbies.Remove(player.Lobby);
             }
-            var args = new string[1];
-            args[0] = Response.Succed.ToString();
-            //switch case : state 
-            var remote = new RemoteInvokeMethod(new List<SerializableType>());
-            return remote;
+            return new RemoteInvokeMethod(new List<SerializableType>
+            {
+                new SimpleMessage()
+                {
+                    Message = Response.Succed.ToString()
+                }
+            });
         }
     }
 
