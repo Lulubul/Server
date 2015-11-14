@@ -21,12 +21,14 @@ namespace Server
                 {
                     Type = HeroType.Magic,
                     Race = HeroRace.Human,
+                    HeroTeam = Team.Blue,
                     Name = "Orrin"
                 },
                 new AbstractHero
                 {
                     Type = HeroType.Might,
                     Race = HeroRace.Orc,
+                    HeroTeam = Team.Red,
                     Name = "Sir Christian"
                 }
             };

@@ -19,13 +19,16 @@ namespace Server
         public AbstractHero Hero2;
         public List<Player> Players = new List<Player>();
         public bool IsInitialize;
+        public bool IsGameReady;
+        private int _syncedPlayers;
 
         private readonly IDataCollector _gameInformations = new MockDataCollector();
 
-        public BoardBehavior(int w, int h)
+        public BoardBehavior(int width, int height)
         {
-            _width = w;
-            _height = h;
+            _width = width;
+            _height = height;
+            _syncedPlayers = 0;
             _game = new Game(_width, _height);
             _gamePieces = new List<GamePiece>();
             _selectedPiece = new GamePiece(new Point(0, 0));
@@ -53,10 +56,15 @@ namespace Server
             _round = new Round(Hero1, Hero2);
         }
 
-        public void SendHeroesToClient()
+        public RemoteInvokeMethod GetHeroes()
         {
+            if (!IsInitialize)
+            {
+                Initialize();
+            }
             var board = _gameInformations.GetBoardInfo();
-            NetworkActions.SendMessageToClients(Players, Command.SyncHero, new List<SerializableType> { board, Hero1, Hero2 });
+            IsGameReady = true;
+            return new RemoteInvokeMethod("BoardBehaviorMultiplayer", Command.SyncHero, new List<SerializableType> { board, Hero1, Hero2 });
         }
 
         private void FillTable(int x, int y, AbstractHero hero, IEnumerable<AbstractCreature> creatures)
@@ -92,6 +100,7 @@ namespace Server
 
         public void Move(Point location, Point pointStart, Point pointDestination)
         {
+            _syncedPlayers = 0;
             _selectedPiece.Location = location;
             var start = _game.AllTiles.Single(o => o.X == pointStart.X && o.Y == pointStart.Y);
             var destination = _game.AllTiles.Single(o => o.X == pointDestination.X && o.Y == pointDestination.Y);
@@ -102,6 +111,8 @@ namespace Server
 
         public void FinishAction()
         {
+            _syncedPlayers++;
+            if (_syncedPlayers != 2) return;
             var currentCreature = _round.NextCreature();
             var turns = new List<SerializableType>
             {
@@ -111,12 +122,21 @@ namespace Server
                     CreatureIndex = currentCreature.Index
                 }
             };
-            NetworkActions.SendMessageToClients(Players, Command.ChangeTurn, turns);
+            NetworkActions.SendMessageToClients(Players, Command.FinishAction, turns);
         }
 
         public void Defend(int index)
         {
-            FinishAction();
+            var currentCreature = _round.NextCreature();
+            var turns = new List<SerializableType>
+            {
+                new NextTurn
+                {
+                    Team = currentCreature.Team.ToString(),
+                    CreatureIndex = currentCreature.Index
+                }
+            };
+            NetworkActions.SendMessageToClients(Players, Command.FinishAction, turns);
         }
     }
 

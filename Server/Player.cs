@@ -9,7 +9,7 @@ namespace Server
         private readonly Socket _mSock;	
         private readonly byte[] _mByBuff;
 
-        public string Lobby;
+        public string Lobby { get; set; }
         public string Name { get; set; }
         public int Flag { get; set; }
         public Team Team { get; set; }

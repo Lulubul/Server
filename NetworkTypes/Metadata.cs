@@ -20,11 +20,13 @@
         SyncRooms,
         SyncLobby,
         UpdateLobby,
-        ChangeTurn,
         FinishAction,
         Turn,
         SyncHero,
-        InitializeBoard
+        InitializeBoard,
+        Attack,
+        Defend,
+        GameIsReady
     };
 
     public enum Response

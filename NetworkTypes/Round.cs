@@ -4,39 +4,49 @@ namespace NetworkTypes
 {
     public class Round
     {
-        private readonly Dictionary<bool, LinkedList<AbstractCreature>> _creaturesDictionary = new Dictionary<bool, LinkedList<AbstractCreature>>();
-        private readonly Dictionary<bool, Turn> _turns = new Dictionary<bool, Turn>();
-        private bool _isFirstHero = true;
+        private readonly Dictionary<Team, LinkedListNode<AbstractCreature>> _creaturesDictionary = new Dictionary<Team, LinkedListNode<AbstractCreature>>();
+        private readonly LinkedList<AbstractHero> _heroes = new LinkedList<AbstractHero>();
+        private LinkedListNode<AbstractHero> _currentHero;
+        private readonly LinkedList<AbstractCreature> blueCreatures;
+        private readonly LinkedList<AbstractCreature> redCreatures;
 
         public Round(AbstractHero h1, AbstractHero h2)
         {
-            _creaturesDictionary.Add(true, new LinkedList<AbstractCreature>(h1.Creatures));
-            _creaturesDictionary.Add(false, new LinkedList<AbstractCreature>(h2.Creatures));
-            _turns.Add(true, new Turn(true, _creaturesDictionary[true].First));
-            _turns.Add(false, new Turn(false, _creaturesDictionary[false].First));
+            _heroes.AddLast(h1);
+            _heroes.AddLast(h2);
+            _currentHero = _heroes.First;
+            blueCreatures = new LinkedList<AbstractCreature>(h1.Creatures);
+            redCreatures = new LinkedList<AbstractCreature>(h2.Creatures);
+            var blueCreature = blueCreatures.First;
+            var redCreature = redCreatures.First;
+            _creaturesDictionary.Add(h1.HeroTeam, blueCreature);
+            _creaturesDictionary.Add(h2.HeroTeam, redCreature);
         }
 
         public AbstractCreature NextCreature()
         {
-            _isFirstHero = !_isFirstHero;
-            while (_turns[_isFirstHero].Creature.NextOrFirst().Value.Status == CreatureStatus.Death)
+            _currentHero = _currentHero.NextOrFirst();
+            var currentTurn = _creaturesDictionary[_currentHero.Value.HeroTeam].NextOrFirst();
+            while (currentTurn.NextOrFirst().Value.Status == CreatureStatus.Death)
             {
-                _turns[_isFirstHero].Creature = _turns[_isFirstHero].Creature.NextOrFirst();
+                currentTurn = currentTurn.NextOrFirst();
             }
-            return _turns[_isFirstHero].Creature.Value;
+            _creaturesDictionary[_currentHero.Value.HeroTeam] = currentTurn;
+            return currentTurn.Value;
         }
     }
 
     static class CircularLinkedList
     {
-        public static LinkedListNode<AbstractCreature> NextOrFirst(this LinkedListNode<AbstractCreature> current)
+        public static LinkedListNode<T> NextOrFirst<T>(this LinkedListNode<T> current)
         {
             return current.Next ?? current.List.First;
         }
 
-        public static LinkedListNode<AbstractCreature> PreviousOrLast(this LinkedListNode<AbstractCreature> current)
+        public static LinkedListNode<T> PreviousOrLast<T>(this LinkedListNode<T> current)
         {
             return current.Previous ?? current.List.Last;
         }
     }
+
 }

@@ -95,6 +95,7 @@ namespace NetworkTypes
             var value = typeof(BinaryReader).GetMethod(methodName).Invoke(reader, null);
             if (value != null)
             {
+                Console.WriteLine(methodName + " " + value);
                 propertyInfo.SetValue(parent, value, null);
             }
         }

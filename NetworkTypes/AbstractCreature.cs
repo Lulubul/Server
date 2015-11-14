@@ -21,7 +21,6 @@
         public Point Piece { get; set; }
 
         public AbstractCreature() {
-            //TODO: Move this in config file
             Damage = 45;
             Luck = 20;
             Speed = 3;

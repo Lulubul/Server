@@ -50,6 +50,7 @@ namespace Server
             foreach (var parameter in toWrite.Parameters)
             {
                 var type = parameter.GetType();
+                Console.WriteLine(type.ToString());
                 writer.Write(type.ToString());
                 parameter.Serialize(writer, type, parameter);
             }
@@ -69,6 +70,7 @@ namespace Server
             {
                 var type = reader.ReadString() + ", " + AssemblyName;
                 var objectType = Type.GetType(type);
+                Console.WriteLine(objectType.ToString());
                 var item = Activator.CreateInstance(objectType) as SerializableType;
                 item.Deserialize(reader, objectType, item);
                 parameters.Add(item);

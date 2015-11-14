@@ -26,9 +26,9 @@ namespace PathFinding
                     return path;
 
                 closed.Add(path.LastStep);
-                foreach (TNode n in path.LastStep.Neighbours)
+                foreach (var n in path.LastStep.Neighbours)
                 {
-                    double d = distance(path.LastStep, n);
+                    var d = distance(path.LastStep, n);
                     var newPath = path.AddStep(n, d);
                     queue.Enqueue(newPath.TotalCost + estimate(n), newPath);
                 }
