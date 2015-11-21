@@ -26,42 +26,15 @@ namespace PathFinding
                     return path;
 
                 closed.Add(path.LastStep);
-                foreach (var n in path.LastStep.Neighbours)
+                foreach (var neighbour in path.LastStep.Neighbours)
                 {
-                    var d = distance(path.LastStep, n);
-                    var newPath = path.AddStep(n, d);
-                    queue.Enqueue(newPath.TotalCost + estimate(n), newPath);
+                    var d = distance(path.LastStep, neighbour);
+                    var newPath = path.AddStep(neighbour, d);
+                    queue.Enqueue(newPath.TotalCost + estimate(neighbour), newPath);
                 }
             }
 
             return null;
-        }
-
-        public static List<List<TNode>> MovementRange<TNode>(TNode start, int movement)
-            where TNode : IHasNeighbours<TNode>
-        {
-            var visited = new List<TNode>();
-            var fringes = new List<List<TNode>> {new List<TNode>()};
-            fringes[0].Add(start);
-            visited.Add(start);
-
-            for (var k = 1; k <= movement; k++)
-            {
-                fringes.Add(new List<TNode>());
-                fringes[k] = new List<TNode>();
-                foreach (var hex in fringes[k - 1])
-                {
-                    foreach (var neighbor in hex.Neighbours)
-                    {
-                        if (!visited.Contains(neighbor))
-                        {
-                            visited.Add(neighbor);
-                            fringes[k].Add(neighbor);
-                        }
-                    }
-                }
-            }
-            return fringes;
         }
 
     }
