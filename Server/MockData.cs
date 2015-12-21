@@ -3,7 +3,6 @@ using NetworkTypes;
 
 namespace Server
 {
-
     public interface IDataCollector
     {
         List<AbstractHero> GetHeroes();
@@ -20,14 +19,14 @@ namespace Server
                 new AbstractHero
                 {
                     Type = HeroType.Magic,
-                    Race = HeroRace.Human,
+                    RaceEnum = RaceEnum.Human,
                     HeroTeam = Team.Blue,
                     Name = "Orrin"
                 },
                 new AbstractHero
                 {
                     Type = HeroType.Might,
-                    Race = HeroRace.Orc,
+                    RaceEnum = RaceEnum.Orc,
                     HeroTeam = Team.Red,
                     Name = "Sir Christian"
                 }
@@ -40,54 +39,67 @@ namespace Server
             {
                 new AbstractCreature
                 {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Melee,
-                    Team = Team.Red
+                    Health = 20,
+                    Range = 20,
+                    Count = 5,
+                    Name = "Aurel2",
+                    Armor = 10,
+                    Team = Team.Red,
+                    Type = CreatureType.Melee
                 },
                 new AbstractCreature
                 {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Melee,
-                    Team = Team.Red
+                    Health = 20,
+                    Range = 20,
+                     Count = 5,
+                    Name = "Aurel",
+                    Armor = 10,
+                    Team = Team.Red,
+                    Type = CreatureType.Melee
                 },
                 new AbstractCreature
                 {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Melee,
-                    Team = Team.Red
+                    Health = 20,
+                    Range = 20,
+                    Count = 5,
+                    Name = "Aurel",
+                    Armor = 10,
+                    Team = Team.Red,
+                    Type = CreatureType.Melee
                 },
                 new AbstractCreature
                 {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Melee,
-                    Team = Team.Red
+                    Health = 20,
+                    Range = 20,
+                    Count = 5,
+                    Name = "Aurel",
+                    Armor = 10,
+                    Team = Team.Blue,
+                    Type = CreatureType.Range
                 },
                 new AbstractCreature
                 {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Melee,
-                    Team = Team.Blue
+                    Health = 20,
+                    Range = 20,
+                    Count = 5,
+                    Name = "Aurel",
+                    Armor = 10,
+                    Team = Team.Blue,
+                    Type = CreatureType.Range
                 },
                 new AbstractCreature
                 {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Range,
-                    Team = Team.Blue
-                },
-                new AbstractCreature
-                {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Melee,
-                    Team = Team.Blue
-                },
-                new AbstractCreature
-                {
-                    Name = HeroRace.Orc.ToString(),
-                    Type = CreatureType.Range,
-                    Team = Team.Blue
+                    Health = 20,
+                    Range = 20,
+                    Count = 5,
+                    Name = "Aurel",
+                    Armor = 10,
+                    Team = Team.Blue,
+                    Type = CreatureType.Range
                 }
             };
         }
+
 
         public BoardInfo GetBoardInfo()
         {

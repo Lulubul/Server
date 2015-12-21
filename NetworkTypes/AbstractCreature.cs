@@ -1,14 +1,13 @@
 ﻿namespace NetworkTypes
 {
-
     public class AbstractCreature : SerializableType
     {
         #region Fields
-        public float Damage { get; set; }
-        public float Luck { get; set; }
+        public double Damage { get; set; }
+        public double Luck { get; set; }
         public string Name { get; set; }
-        public float Range { get; set; }
-        public float Health { get; set; }
+        public double Range { get; set; }
+        public double Health { get; set; }
         public int MaxHealth { get; set; }
         public int Speed { get; set; }
         public int Count { get; set; }
@@ -19,15 +18,5 @@
         public CreatureStatus Status { get; set; }
         public int Index { get; set; }
         public Point Piece { get; set; }
-
-        public AbstractCreature() {
-            Damage = 45;
-            Luck = 20;
-            Speed = 3;
-            Health = 250.0f;
-            MaxHealth = 250;
-            Count = 5;
-            Armor = 10;
-        }
     }
 }

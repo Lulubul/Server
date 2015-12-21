@@ -6,23 +6,21 @@ namespace Entities
     using System.ComponentModel.DataAnnotations.Schema;
     using System.Data.Entity.Spatial;
 
-    public partial class User
+    [Table("History")]
+    public partial class History
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
-        public User()
+        public History()
         {
-            Histories = new HashSet<History>();
+            Users = new HashSet<User>();
         }
 
         public int Id { get; set; }
 
-        [Required]
-        public string Username { get; set; }
-
-        [Required]
-        public string Password { get; set; }
+        [Column(TypeName = "date")]
+        public DateTime Date { get; set; }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public virtual ICollection<History> Histories { get; set; }
+        public virtual ICollection<User> Users { get; set; }
     }
 }

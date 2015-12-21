@@ -20,9 +20,10 @@ namespace Server
         public Player(Socket sock)
         {
             _mSock = sock;
-            _mByBuff = new byte[256];
+            _mByBuff = new byte[512];
             State = State.Connect;
         }
+
         public Socket Sock
         {
             get { return _mSock; }

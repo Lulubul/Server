@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
+using AutoMapper;
 using DataAccess;
+using Entities;
 using NetworkTypes;
+using Type = System.Type;
 
 namespace Server
 {
@@ -18,9 +20,13 @@ namespace Server
         private readonly Type _type;
         private readonly Repository _repository;
         private readonly UserRepository _userRepository;
-
+        private readonly HeroesRepository _heroRepository;
+        private readonly CreaturesRepository _creaturesRepository;
         private const int BoardSizeWidth = 12;
         private const int BoardSizeHeight = 7;
+
+        private readonly List<SerializableType> _heroes;
+        private readonly List<SerializableType> _creatures;
 
         public NetworkActions()
         {
@@ -30,7 +36,16 @@ namespace Server
             Games = new Dictionary<string, BoardBehavior>();
             _repository = new Repository();
             _userRepository = _repository.Users;
+            _heroRepository = _repository.Heroes;
+            _creaturesRepository = _repository.Creatures;
             _type = GetType();
+
+            _heroes = Mapper.Map<List<Hero>, List<HeroInfo>>(_heroRepository.GetHeroes())
+                            .Cast<SerializableType>()
+                            .ToList();
+            _creatures = Mapper.Map<List<Creature>, List<CreatureInfo>>(_creaturesRepository.GetCreatures())
+                               .Cast<SerializableType>()
+                               .ToList();
         }
 
         public void Execute(Command command, string serviceClassName, List<SerializableType> parameters, Player player)
@@ -169,11 +184,15 @@ namespace Server
                 newLobby.Players.Add(player);
                 Lobbies.Add(lobbyName, newLobby);
 
+                var board = new BoardBehavior(BoardSizeWidth, BoardSizeHeight);
+                Games.Add(lobbyName, board);
+
                 var message = new ResponseMessage
                 {
                     Response = Response.Succed.ToString(),
                     Message = room.Name
                 };
+                SendUnits(player);
                 args.Add(message);
                 var lobby = new List<SerializableType> { room };
                 var response = new RemoteInvokeMethod(Command.SyncRooms, lobby);
@@ -218,27 +237,10 @@ namespace Server
                 return new RemoteInvokeMethod(user);
             }
 
-            //Send SyncLobby
-            var newPlayer = new List<SerializableType> { gambler };
-            var response = new RemoteInvokeMethod(Command.SyncLobby, newPlayer);
-            var bytes = RemoteInvokeMethod.WriteToStream(response);
+            SendSyncLobby(roomName, gambler);
+            SendUnits(Players[index]);
 
-            foreach (var player in Lobbies[roomName].Players)
-            {
-                player.Sock.Send(bytes, bytes.Length, 0);
-            }
-
-            var playersInLobby = Players.FindAll(x => (x.State == State.Lobby || x.State == State.Connect) && x.Id != gambler.Id);
-            var lobbyUpdate = new RemoteInvokeMethod(Command.UpdateLobby, newPlayer);
-            var bytesMessage = RemoteInvokeMethod.WriteToStream(lobbyUpdate);
-            foreach (var player in playersInLobby)
-            {
-                player.Sock.Send(bytesMessage, bytesMessage.Length, 0);
-            }
-
-            //Send Response
             var args = new List<SerializableType>();
-
             var lobbyInfo = new LobbyInfo(Lobbies[roomName].CreatorId, Lobbies[roomName].Name, Lobbies[roomName].GameType, Lobbies[roomName].MaxPlayers, Lobbies[roomName].Players.Count);
             args.Add(lobbyInfo);
 
@@ -327,12 +329,11 @@ namespace Server
         public void Start(LobbyInfo lobby)
         {
             var roomName = lobby.Name;
-            var board = new BoardBehavior(BoardSizeWidth, BoardSizeHeight);
+            var board = Games[roomName];
             foreach (var player in Lobbies[roomName].Players)
             {
                 board.Players.Add(player);
             }
-            Games.Add(roomName, board);
 
             var args = Lobbies[roomName].Players.Select(player => new Gambler
             {
@@ -352,7 +353,6 @@ namespace Server
 
         public RemoteInvokeMethod InitializeBoard(SimpleMessage message)
         {
-            
             return Games[message.Message].GetHeroes();
         }
 
@@ -398,6 +398,37 @@ namespace Server
                 client.Sock.Send(bytes, bytes.Length, 0);
             }
         }
+
+        private void SendSyncLobby(string roomName, Gambler gambler)
+        {
+            var newPlayer = new List<SerializableType> { gambler };
+            var response = new RemoteInvokeMethod(Command.SyncLobby, newPlayer);
+            var bytes = RemoteInvokeMethod.WriteToStream(response);
+
+            foreach (var player in Lobbies[roomName].Players)
+            {
+                player.Sock.Send(bytes, bytes.Length, 0);
+            }
+
+            var playersInLobby = Players.FindAll(x => (x.State == State.Lobby || x.State == State.Connect) && x.Id != gambler.Id);
+            var lobbyUpdate = new RemoteInvokeMethod(Command.UpdateLobby, newPlayer);
+            var bytesMessage = RemoteInvokeMethod.WriteToStream(lobbyUpdate);
+            foreach (var player in playersInLobby)
+            {
+                player.Sock.Send(bytesMessage, bytesMessage.Length, 0);
+            }
+        }
+
+        private void SendUnits(Player player)
+        {
+            var units = new List<SerializableType>();
+            units.AddRange(_creatures);
+            units.AddRange(_heroes);
+            var remoteInvokeMethod = new RemoteInvokeMethod(Command.SendUnits, units);
+            var bytesMessage = RemoteInvokeMethod.WriteToStream(remoteInvokeMethod);
+            player.Sock.Send(bytesMessage, bytesMessage.Length, 0);
+        }
+
     }
 
 }

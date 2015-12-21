@@ -4,17 +4,30 @@ namespace DataAccess
 {
     public class Repository
     {
-        private readonly HeroesContext _context;
+        private HeroesContext _context;
         private static UserRepository _userRepository;
+        private static CreaturesRepository _creatureRepository;
+        private static HeroesRepository _heroesRepository;
 
         public Repository()
         {
             _context = new HeroesContext();
+            _context.Configuration.LazyLoadingEnabled = false;
         }
 
         public UserRepository Users
         {
             get { return _userRepository = _userRepository ?? new UserRepository(_context); }
+        }
+
+        public CreaturesRepository Creatures
+        {
+            get { return _creatureRepository = _creatureRepository ?? new CreaturesRepository(_context); }
+        }
+
+        public HeroesRepository Heroes
+        {
+            get { return _heroesRepository = _heroesRepository ?? new HeroesRepository(_context); }
         }
 
     }

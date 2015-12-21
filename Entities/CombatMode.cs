@@ -6,23 +6,22 @@ namespace Entities
     using System.ComponentModel.DataAnnotations.Schema;
     using System.Data.Entity.Spatial;
 
-    public partial class User
+    [Table("CombatMode")]
+    public partial class CombatMode
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
-        public User()
+        public CombatMode()
         {
-            Histories = new HashSet<History>();
+            Creatures = new HashSet<Creature>();
         }
 
         public int Id { get; set; }
 
         [Required]
-        public string Username { get; set; }
-
-        [Required]
-        public string Password { get; set; }
+        [StringLength(50)]
+        public string Type { get; set; }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public virtual ICollection<History> Histories { get; set; }
+        public virtual ICollection<Creature> Creatures { get; set; }
     }
 }

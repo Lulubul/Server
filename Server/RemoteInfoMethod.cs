@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using NetworkTypes;
+using LitJson;
 
 namespace Server
 {
@@ -11,6 +13,7 @@ namespace Server
         public string MethodName { get; set; }
         public List<SerializableType> Parameters { get; set; }
         public static readonly string AssemblyName = "NetworkTypes";
+        public static bool UseJsonSerialization = false;
 
         public RemoteInvokeMethod(List<SerializableType> parameters)
         {
@@ -39,6 +42,13 @@ namespace Server
             Parameters = parameters;
         }
 
+        public RemoteInvokeMethod(string serviceClassName, Command methodName)
+        {
+            ServiceClassName = serviceClassName;
+            MethodName = methodName.ToString();
+            Parameters = new List<SerializableType>();
+        }
+
         public static byte[] WriteToStream(RemoteInvokeMethod toWrite)
         {
             var stream = new MemoryStream();
@@ -50,8 +60,12 @@ namespace Server
             foreach (var parameter in toWrite.Parameters)
             {
                 var type = parameter.GetType();
-                Console.WriteLine(type.ToString());
                 writer.Write(type.ToString());
+                if (UseJsonSerialization)
+                {
+                    writer.Write(JsonMapper.ToJson(parameter));
+                    continue;
+                }
                 parameter.Serialize(writer, type, parameter);
             }
             return stream.GetBuffer();
@@ -70,13 +84,34 @@ namespace Server
             {
                 var type = reader.ReadString() + ", " + AssemblyName;
                 var objectType = Type.GetType(type);
-                Console.WriteLine(objectType.ToString());
                 var item = Activator.CreateInstance(objectType) as SerializableType;
-                item.Deserialize(reader, objectType, item);
+                if (UseJsonSerialization)
+                {
+                    var json = reader.ReadString();
+                    item = JsonToObject(json, objectType);
+                }
+                else
+                {
+                    item.Deserialize(reader, objectType, item);
+                }
                 parameters.Add(item);
             }
             var instance = new RemoteInvokeMethod(className, methodName, parameters);
             return instance;
+        }
+
+        public static SerializableType JsonToObject(string json, Type type)
+        {
+            var methods = typeof(JsonMapper).GetMethods();
+            foreach (var method in methods)
+            {
+                if (method.IsGenericMethod && method.Name == "ToObject" && method.GetParameters().Any(x => x.ParameterType == typeof(string)))
+                {
+                    var generic = method.MakeGenericMethod(type);
+                    return generic.Invoke(null, new object[] { json }) as SerializableType;
+                }
+            }
+            return new SerializableType();
         }
     }
 }

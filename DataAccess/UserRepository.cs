@@ -36,7 +36,7 @@ namespace DataAccess
             return user;
         }
 
-        public string GetSha256(string password)
+        private string GetSha256(string password)
         {
             var hash = new StringBuilder();
             var crypto = _sha256.ComputeHash(Encoding.UTF8.GetBytes(password), 0, Encoding.UTF8.GetByteCount(password));

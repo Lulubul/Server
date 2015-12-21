@@ -26,7 +26,9 @@
         InitializeBoard,
         Attack,
         Defend,
-        GameIsReady
+        GameIsReady,
+        SelectUnits,
+        SendUnits
     };
 
     public enum Response
@@ -56,9 +58,9 @@
         Play
     }
 
-    public enum HeroRace { Human, Orc };
+    public enum RaceEnum { Human, Orc };
     public enum HeroType { Might, Magic }
-    public enum CreatureType { Melee, Range }
+    public enum CreatureType { Range, Melee }
     public enum CreatureStatus { Alive, Death }
 
 }
