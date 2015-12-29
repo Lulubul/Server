@@ -11,12 +11,12 @@
         public int X { get; set; }
         public int Y { get; set; }
 
-        public SpacialObject(int x, int y)
+        protected SpacialObject(int x, int y)
             : this(new Point(x, y))
         {
         }
 
-        public SpacialObject(Point location)
+        protected SpacialObject(Point location)
         {
             Location = location;
         }

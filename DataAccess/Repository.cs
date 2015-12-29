@@ -5,9 +5,9 @@ namespace DataAccess
     public class Repository
     {
         private HeroesContext _context;
-        private static UserRepository _userRepository;
-        private static CreaturesRepository _creatureRepository;
-        private static HeroesRepository _heroesRepository;
+        private UserRepository _userRepository;
+        private CreaturesRepository _creatureRepository;
+        private HeroesRepository _heroesRepository;
 
         public Repository()
         {

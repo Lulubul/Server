@@ -15,13 +15,12 @@ namespace Server
         public Team Team { get; set; }
         public int Id { get; set; }
         public int Slot { get; set; }
-        public State State;
+        public State State = State.Connect;
 
         public Player(Socket sock)
         {
             _mSock = sock;
             _mByBuff = new byte[512];
-            State = State.Connect;
         }
 
         public Socket Sock

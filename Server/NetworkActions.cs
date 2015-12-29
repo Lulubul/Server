@@ -16,7 +16,6 @@ namespace Server
         public List<Player> Players;
         public Dictionary<string, BoardBehavior> Games;
 
-        private Dictionary<Type, object> Instances; 
         private readonly Type _type;
         private readonly Repository _repository;
         private readonly UserRepository _userRepository;
@@ -107,7 +106,7 @@ namespace Server
             Players.Add(player);
         }
 
-        public RemoteInvokeMethod Connect()
+        public static RemoteInvokeMethod Connect()
         {
             return new RemoteInvokeMethod(new List<SerializableType>()
             {

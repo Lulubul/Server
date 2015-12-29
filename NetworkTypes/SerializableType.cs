@@ -37,7 +37,7 @@ namespace NetworkTypes
             }
         }
 
-        public void ToBinary(BinaryWriter writer, PropertyInfo propertyInfo, object item)
+        public static void ToBinary(BinaryWriter writer, PropertyInfo propertyInfo, object item)
         {
             var value = propertyInfo.GetValue(item, null);
             if (value != null)

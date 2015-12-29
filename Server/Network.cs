@@ -66,8 +66,8 @@ namespace Server
             Console.Read();
 
             Socket.Close();
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
+            //GC.Collect();
+            //GC.WaitForPendingFinalizers();
         }
 
         public void AcceptCallback(IAsyncResult ar)

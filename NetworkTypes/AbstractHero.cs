@@ -13,7 +13,7 @@ namespace NetworkTypes
         public RaceEnum RaceEnum { get; set; }
         public HeroType Type { get; set; }
         public Team HeroTeam { get; set; }
-        public List<AbstractCreature> Creatures { get; set; }
+        public  List<AbstractCreature> Creatures { get; set; }
         public AbstractHero()
         {
             Creatures = new List<AbstractCreature>();

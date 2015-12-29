@@ -7,7 +7,6 @@ namespace NetworkTypes
     public class Game
     {
         public Tile[,] GameBoard;
-        public IEnumerable<GamePiece> GamePieces;
 
         public int Width;
         public int Height;
@@ -21,11 +20,6 @@ namespace NetworkTypes
             BlockOutTiles(5, 3);
             BlockOutTiles(6, 3);
             BlockOutTiles(5, 4);
-        }
-
-        public void InitialiseGamePieces(List<GamePiece> gamePieces)
-        {
-            GamePieces = gamePieces;
         }
 
         private void InitialiseGameBoard()
@@ -52,8 +46,8 @@ namespace NetworkTypes
         {
             get
             {
-                for (int x = 0; x < Width; x++)
-                    for (int y = 0; y < Height; y++)
+                for (var x = 0; x < Width; x++)
+                    for (var y = 0; y < Height; y++)
                         yield return GameBoard[x, y];
             }
         }

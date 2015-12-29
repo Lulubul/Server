@@ -4,7 +4,7 @@ using NetworkTypes;
 
 namespace Server
 {
-    public class AutoMapperConfig
+    public static class AutoMapperConfig
     {
         public static void Initialize()
         {

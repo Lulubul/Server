@@ -27,13 +27,14 @@ namespace NetworkTypes
         {
             _currentHero = _currentHero.NextOrFirst();
             var currentTurn = _creaturesDictionary[_currentHero.Value.HeroTeam].NextOrFirst();
-            while (currentTurn.NextOrFirst().Value.Status == CreatureStatus.Death)
+            while (currentTurn.Value.Status == CreatureStatus.Death)
             {
                 currentTurn = currentTurn.NextOrFirst();
             }
             _creaturesDictionary[_currentHero.Value.HeroTeam] = currentTurn;
             return currentTurn.Value;
         }
+
     }
 
     static class CircularLinkedList
@@ -41,11 +42,6 @@ namespace NetworkTypes
         public static LinkedListNode<T> NextOrFirst<T>(this LinkedListNode<T> current)
         {
             return current.Next ?? current.List.First;
-        }
-
-        public static LinkedListNode<T> PreviousOrLast<T>(this LinkedListNode<T> current)
-        {
-            return current.Previous ?? current.List.Last;
         }
     }
 
