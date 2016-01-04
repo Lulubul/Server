@@ -130,14 +130,16 @@ namespace Server
             gambler.Name = user.Username;
             gambler.Id = user.Id;
             gambler.Response = Response.Succed.ToString();
-            args.AddRange(Lobbies.Values.Select(lobby => new LobbyInfo()
-            {
-                GameType = lobby.GameType,
-                CurrentPlayers = lobby.Players.Count,
-                MaxPlayers = lobby.MaxPlayers,
-                Name = lobby.Name,
-                PlayerId = lobby.CreatorId
-            }));
+            args.AddRange(Lobbies.Values
+                .Where(x=> x.IsGameStart == false)
+                .Select(lobby => new LobbyInfo()
+                {
+                    GameType = lobby.GameType,
+                    CurrentPlayers = lobby.Players.Count,
+                    MaxPlayers = lobby.MaxPlayers,
+                    Name = lobby.Name,
+                    PlayerId = lobby.CreatorId
+                }));
             return new RemoteInvokeMethod(args);
         }
 
@@ -162,7 +164,16 @@ namespace Server
                 Response = Response.Succed.ToString()
             };
             args.Add(gambler);
-            args.AddRange(Lobbies.Values.Cast<SerializableType>());
+            args.AddRange(Lobbies.Values
+                .Where(x => x.IsGameStart == false)
+                .Select(lobby => new LobbyInfo()
+                {
+                    GameType = lobby.GameType,
+                    CurrentPlayers = lobby.Players.Count,
+                    MaxPlayers = lobby.MaxPlayers,
+                    Name = lobby.Name,
+                    PlayerId = lobby.CreatorId
+                }));
             return new RemoteInvokeMethod(args);
         }
 
@@ -332,7 +343,9 @@ namespace Server
             foreach (var player in Lobbies[roomName].Players)
             {
                 board.Players.Add(player);
+                player.State = State.Connect;
             }
+            Lobbies[roomName].IsGameStart = true;
 
             var args = Lobbies[roomName].Players.Select(player => new Gambler
             {

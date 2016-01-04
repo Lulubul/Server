@@ -58,10 +58,12 @@ namespace Server
             {
                 nBytesRec = _mSock.EndReceive(ar);
             }
-            catch
+            catch (Exception)
             {
-                // TODO: Treat expection
+                
+                throw;
             }
+            
             var byReturn = new byte[nBytesRec];
             Array.Copy(_mByBuff, byReturn, nBytesRec);
             return byReturn;

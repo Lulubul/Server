@@ -115,7 +115,21 @@ namespace Server
 
             if (_gameIsOver)
             {
-                Console.WriteLine("Game is over" + _winner);
+                Console.WriteLine("Winner" + _winner);
+                var winner = new List<SerializableType>
+                {
+                    new NextTurn
+                    {
+                        Team = _winner.ToString(),
+                        CreatureIndex = 1
+                    }
+                };
+                foreach (var player in Players)
+                {
+                    player.State = State.Connect;
+                }
+
+                NetworkActions.SendMessageToClients(Players, Command.EndGame, winner);
                 return;
             }
             _syncedPlayers = 0;
@@ -180,7 +194,7 @@ namespace Server
 
             if (Creatures.Where(x => x.Team == creature.Team).All(x => x.Status == CreatureStatus.Death))
             {
-                _gameIsOver = false;
+                _gameIsOver = true;
                 _winner = creature.Team;
             }
 

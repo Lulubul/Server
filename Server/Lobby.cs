@@ -9,6 +9,7 @@ namespace Server
         public string Name;
         public string GameType;
         public int Id, CreatorId, MaxPlayers;
+        public bool IsGameStart;
 
         public Lobby(string name, int creatorId, int maxPlayers, string gameType)
         {
