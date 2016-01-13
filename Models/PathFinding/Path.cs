@@ -22,6 +22,8 @@ namespace PathFinding
 
         public Path(TNode start) : this(start, null, 0) { }
 
+        public Path() { } 
+
         public Path<TNode> AddStep(TNode step, double stepCost)
         {
             return new Path<TNode>(step, this, TotalCost + stepCost);

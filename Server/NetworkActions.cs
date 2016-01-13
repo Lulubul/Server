@@ -124,6 +124,7 @@ namespace Server
             args.Add(gambler);
             if (user == null)
             {
+                gambler.Name = "";
                 gambler.Response = Response.Fail.ToString();
                 return new RemoteInvokeMethod(args);
             }
@@ -131,7 +132,7 @@ namespace Server
             gambler.Id = user.Id;
             gambler.Response = Response.Succed.ToString();
             args.AddRange(Lobbies.Values
-                .Where(x=> x.IsGameStart == false)
+                .Where(x => x.IsGameStart == false)
                 .Select(lobby => new LobbyInfo()
                 {
                     GameType = lobby.GameType,

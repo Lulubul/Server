@@ -62,12 +62,12 @@ namespace Server
                 Console.WriteLine(e.ToString());
             }
 
-            Console.WriteLine("\nPress ENTER to continue...");
+            Console.WriteLine("\nPress Enter to stop server");
             Console.Read();
 
             Socket.Close();
-            //GC.Collect();
-            //GC.WaitForPendingFinalizers();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
 
         public void AcceptCallback(IAsyncResult ar)

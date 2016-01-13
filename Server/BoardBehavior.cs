@@ -32,7 +32,7 @@ namespace Server
         private Repository repository;
         private readonly CreaturesRepository creaturesRepository;
         private readonly HeroesRepository heroesRepository;
-        private readonly IDataCollector _gameInformations = new MockDataCollector();
+        private readonly IDataCollector _gameInformations = new DataCollector();
 
         private bool _gameIsOver;
         private Team _winner;
@@ -105,7 +105,9 @@ namespace Server
             Func<Tile, double> estimate = t => Math.Sqrt(Math.Pow(t.X - destination.X, 2) + Math.Pow(t.Y - destination.Y, 2));
             _game.GameBoard[location.X, location.Y].CanPass = true;
             _game.GameBoard[_selectedPiece.X, _selectedPiece.Y].CanPass = true;
-            return PathFind.FindPath(start, destination, distance, estimate).ToList();
+            var path = PathFind.FindPath(start, destination, distance, estimate).ToList();
+            _game.GameBoard[destination.X, destination.Y].CanPass = false;
+            return path;
         }
 
         public void FinishAction()
@@ -115,7 +117,6 @@ namespace Server
 
             if (_gameIsOver)
             {
-                Console.WriteLine("Winner" + _winner);
                 var winner = new List<SerializableType>
                 {
                     new NextTurn
@@ -124,14 +125,18 @@ namespace Server
                         CreatureIndex = 1
                     }
                 };
+
                 foreach (var player in Players)
                 {
                     player.State = State.Connect;
+                    player.Lobby = "";
+                    player.Slot = -1;
                 }
 
                 NetworkActions.SendMessageToClients(Players, Command.EndGame, winner);
                 return;
             }
+
             _syncedPlayers = 0;
             var currentCreature = _round.NextCreature();
             var turns = new List<SerializableType>
@@ -148,7 +153,9 @@ namespace Server
         #region Creature Action
         public void Attack(AttackModel model)
         {
+            _syncedPlayers = 0;
             var sender = Creatures.SingleOrDefault(x => x.Index == model.SenderCreatureIndex);
+            var target = Creatures.SingleOrDefault(x => x.Index == model.TargetCreatureIndex);
             var damage = CalculateDamage(sender);
             var attackModel = new List<SerializableType>()
             {
@@ -159,15 +166,15 @@ namespace Server
                     Damage = damage
                 }
             };
-            var totalHealth = (sender.Count - 1) * sender.MaxHealth + sender.Health;
-            totalHealth = totalHealth - damage;
-            sender.Health = totalHealth % (sender.MaxHealth + 1);
-            sender.Count = (int)totalHealth / sender.MaxHealth + 1;
+            var totalHealth = (target.Count - 1) * target.MaxHealth + target.Health - damage;
+            target.Health = totalHealth <= 0 ? 0 : totalHealth % (target.MaxHealth + 1);
+            target.Count = totalHealth <= 0 ? 0 : (int)totalHealth / target.MaxHealth + 1;
             NetworkActions.SendMessageToClients(Players, Command.Attack, attackModel);
         }
 
         public void Defend(int index)
         {
+            _syncedPlayers = 0;
             var currentCreature = _round.NextCreature();
             var turns = new List<SerializableType>
             {
@@ -182,7 +189,8 @@ namespace Server
 
         public void Die(Point point)
         {
-            var creature = Creatures.SingleOrDefault(x => x.Piece.X == point.X && x.Piece.Y == point.Y);
+            _syncedPlayers = 0;
+            var creature = Creatures.SingleOrDefault(x => x.Piece.X == point.X && x.Piece.Y == point.Y && x.Status == CreatureStatus.Alive);
             if (creature == null || creature.Status == CreatureStatus.Death)
             {
                 return;
@@ -201,17 +209,17 @@ namespace Server
             NetworkActions.SendMessageToClients(Players, Command.Die, new List<SerializableType>() { point });
         }
 
-        public void Move(Point location, Point pointStart, Point pointDestination)
+        public void Move(Point pointStart, Point pointDestination)
         {
             _syncedPlayers = 0;
-            _selectedPiece.Location = location;
+            _selectedPiece.Location = pointStart;
             var start = _game.AllTiles.Single(o => o.X == pointStart.X && o.Y == pointStart.Y);
             var destination = _game.AllTiles.Single(o => o.X == pointDestination.X && o.Y == pointDestination.Y);
 
-            var creature = Creatures.SingleOrDefault(x => x.Piece.X == pointStart.X && x.Piece.Y == pointStart.Y);
+            var creature = Creatures.SingleOrDefault(x => x.Piece.X == pointStart.X && x.Piece.Y == pointStart.Y && x.Status == CreatureStatus.Alive);
             creature.Piece = pointDestination;
 
-            var path = OnGameStateChanged(location, start, destination);
+            var path = OnGameStateChanged(pointStart, start, destination);
             var responsePath = path.Select(tile => new Point(tile.Location.X, tile.Location.Y))
                                 .Cast<SerializableType>()
                                 .ToList();
@@ -219,13 +227,13 @@ namespace Server
         }
         #endregion
 
-        private double CalculateDamage(AbstractCreature creature)
+        private static double CalculateDamage(AbstractCreature creature)
         {
             if (creature.Type == CreatureType.Melee)
             {
-                return creature.Damage * creature.Count * 5;
+                return creature.Damage * creature.Count * 3;
             }
-            return creature.Damage * creature.Count * 10;
+            return creature.Damage * creature.Count * 2;
         }
 
         public void SelectUnits(Units units)

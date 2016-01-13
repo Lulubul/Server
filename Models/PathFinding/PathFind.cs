@@ -34,7 +34,7 @@ namespace PathFinding
                 }
             }
 
-            return null;
+            return new Path<TNode>();
         }
 
     }
