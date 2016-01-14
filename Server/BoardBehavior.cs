@@ -22,32 +22,32 @@ namespace Server
         public AbstractHero Hero2;
         public List<Player> Players = new List<Player>();
         public List<AbstractCreature> Creatures = new List<AbstractCreature>();
+        public bool IsInitialize;
+        public bool IsGameReady;
+        public NetworkActions NetworkHandler;
 
         private readonly List<AbstractHero> _selectedHeroes = new List<AbstractHero>();
         private readonly List<AbstractCreature> _selectedCreatures = new List<AbstractCreature>();
-
-        public bool IsInitialize;
-        public bool IsGameReady;
         private int _syncedPlayers;
-        private Repository repository;
-        private readonly CreaturesRepository creaturesRepository;
-        private readonly HeroesRepository heroesRepository;
+        private readonly CreaturesRepository _creaturesRepository;
+        private readonly HeroesRepository _heroesRepository;
         private readonly IDataCollector _gameInformations = new DataCollector();
-
         private bool _gameIsOver;
         private Team _winner;
+        private string _boardName;
 
-        public BoardBehavior(int width, int height)
+        public BoardBehavior(int width, int height, string boardName)
         {
             _width = width;
             _height = height;
+            _boardName = boardName;
             _syncedPlayers = 0;
             _game = new Game(_width, _height);
             _gamePieces = new List<GamePiece>();
             _selectedPiece = new GamePiece(new Point(0, 0));
-            repository = new Repository();
-            creaturesRepository = repository.Creatures;
-            heroesRepository = repository.Heroes;
+            var repository = new Repository();
+            _creaturesRepository = repository.Creatures;
+            _heroesRepository = repository.Heroes;
         }
 
         public void Initialize()
@@ -110,6 +110,7 @@ namespace Server
             return path;
         }
 
+        #region Creature Action
         public void FinishAction()
         {
             _syncedPlayers++;
@@ -128,11 +129,11 @@ namespace Server
 
                 foreach (var player in Players)
                 {
-                    player.State = State.Connect;
+                    player.State = State.Lobby;
                     player.Lobby = "";
                     player.Slot = -1;
                 }
-
+                NetworkHandler.RemoveLobby(_boardName);
                 NetworkActions.SendMessageToClients(Players, Command.EndGame, winner);
                 return;
             }
@@ -150,7 +151,7 @@ namespace Server
             NetworkActions.SendMessageToClients(Players, Command.FinishAction, turns);
         }
 
-        #region Creature Action
+
         public void Attack(AttackModel model)
         {
             _syncedPlayers = 0;
@@ -238,7 +239,7 @@ namespace Server
 
         public void SelectUnits(Units units)
         {
-            var hero = heroesRepository.GetHeroWithName(units.HeroName);
+            var hero = _heroesRepository.GetHeroWithName(units.HeroName);
             var abstractHero = Mapper.Map<Hero, AbstractHero>(hero);
             abstractHero.HeroTeam = units.Team;
             _selectedHeroes.Add(abstractHero);
@@ -251,7 +252,7 @@ namespace Server
                 units.Creature4
             };
 
-            var creatures = creaturesRepository.GetCreaturesByName(creatureNameGroup);
+            var creatures = _creaturesRepository.GetCreaturesByName(creatureNameGroup);
             foreach (var creatureName in creatureNameGroup)
             {
                 var creatureType = creatures[creatureName];

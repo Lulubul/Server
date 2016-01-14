@@ -17,10 +17,7 @@ namespace Server
         public Dictionary<string, BoardBehavior> Games;
 
         private readonly Type _type;
-        private readonly Repository _repository;
         private readonly UserRepository _userRepository;
-        private readonly HeroesRepository _heroRepository;
-        private readonly CreaturesRepository _creaturesRepository;
         private const int BoardSizeWidth = 12;
         private const int BoardSizeHeight = 7;
 
@@ -33,16 +30,16 @@ namespace Server
             History = new Dictionary<Player, string>();
             Players = new List<Player>();
             Games = new Dictionary<string, BoardBehavior>();
-            _repository = new Repository();
-            _userRepository = _repository.Users;
-            _heroRepository = _repository.Heroes;
-            _creaturesRepository = _repository.Creatures;
+            var repository = new Repository();
+            _userRepository = repository.Users;
+            var heroRepository = repository.Heroes;
+            var creaturesRepository = repository.Creatures;
             _type = GetType();
 
-            _heroes = Mapper.Map<List<Hero>, List<HeroInfo>>(_heroRepository.GetHeroes())
+            _heroes = Mapper.Map<List<Hero>, List<HeroInfo>>(heroRepository.GetHeroes())
                             .Cast<SerializableType>()
                             .ToList();
-            _creatures = Mapper.Map<List<Creature>, List<CreatureInfo>>(_creaturesRepository.GetCreatures())
+            _creatures = Mapper.Map<List<Creature>, List<CreatureInfo>>(creaturesRepository.GetCreatures())
                                .Cast<SerializableType>()
                                .ToList();
         }
@@ -144,6 +141,21 @@ namespace Server
             return new RemoteInvokeMethod(args);
         }
 
+        public RemoteInvokeMethod GetLobbies()
+        {
+            var lobbies = new List<SerializableType>();
+            lobbies.AddRange(Lobbies.Values.Where(x => x.IsGameStart == false)
+                .Select(lobby => new LobbyInfo()
+                {
+                    GameType = lobby.GameType,
+                    CurrentPlayers = lobby.Players.Count,
+                    MaxPlayers = lobby.MaxPlayers,
+                    Name = lobby.Name,
+                    PlayerId = lobby.CreatorId
+                }));
+            return new RemoteInvokeMethod(lobbies);
+        }
+
         public RemoteInvokeMethod Logout(Authentication authentification)
         {
             return new RemoteInvokeMethod(new List<SerializableType>()
@@ -195,7 +207,7 @@ namespace Server
                 newLobby.Players.Add(player);
                 Lobbies.Add(lobbyName, newLobby);
 
-                var board = new BoardBehavior(BoardSizeWidth, BoardSizeHeight);
+                var board = new BoardBehavior(BoardSizeWidth, BoardSizeHeight, lobbyName) { NetworkHandler = this };
                 Games.Add(lobbyName, board);
 
                 var message = new ResponseMessage
@@ -361,6 +373,30 @@ namespace Server
             foreach (var player in Lobbies[roomName].Players)
             {
                 player.Sock.Send(bytes, bytes.Length, 0);
+            }
+        }
+
+        public void RemoveLobby(string name)
+        {
+            Games.Remove(name);
+
+            var args = new List<SerializableType>();
+            args.AddRange(Lobbies.Values
+                .Where(x => x.IsGameStart == false)
+                .Select(lobby => new LobbyInfo()
+                {
+                    GameType = lobby.GameType,
+                    CurrentPlayers = lobby.Players.Count,
+                    MaxPlayers = lobby.MaxPlayers,
+                    Name = lobby.Name,
+                    PlayerId = lobby.CreatorId
+                }));
+            var response = new RemoteInvokeMethod(Command.SyncRooms, args);
+            var bytes = RemoteInvokeMethod.WriteToStream(response);
+            var clients = Players.Where(client => client.State == State.Lobby);
+            foreach (var client in clients)
+            {
+                client.Sock.Send(bytes, bytes.Length, 0);
             }
         }
 
