@@ -20,6 +20,8 @@ namespace Entities
         [Column(TypeName = "date")]
         public DateTime Date { get; set; }
 
+        public int Result { get; set; }
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
         public virtual ICollection<User> Users { get; set; }
     }

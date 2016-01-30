@@ -61,8 +61,15 @@ namespace Server
                 }
 
                 var remoteInvokeMethod = theMethod.Invoke(objectOfInvokation, parameters.ToArray()) as RemoteInvokeMethod;
+
+
                 if (remoteInvokeMethod != null)
                 {
+                    if (command == Command.Login || command == Command.Register && remoteInvokeMethod.Parameters != null)
+                    {
+                        player.DatabaseId = (remoteInvokeMethod.Parameters[0] as Gambler).Id;
+                    }
+
                     remoteInvokeMethod.MethodName = remoteInvokeMethod.MethodName ?? command.ToString();
                     var bytes = RemoteInvokeMethod.WriteToStream(remoteInvokeMethod);
                     player.Sock.Send(bytes, bytes.Length, 0);
@@ -125,8 +132,10 @@ namespace Server
                 gambler.Response = Response.Fail.ToString();
                 return new RemoteInvokeMethod(args);
             }
+            
             gambler.Name = user.Username;
             gambler.Id = user.Id;
+            gambler.Wins = user.Histories.Count(x => x.Result == 1);
             gambler.Response = Response.Succed.ToString();
             args.AddRange(Lobbies.Values
                 .Where(x => x.IsGameStart == false)

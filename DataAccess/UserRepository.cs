@@ -23,6 +23,11 @@ namespace DataAccess
             return _context.Users.FirstOrDefault(u => u.Username == username && u.Password == passwordHash);
         }
 
+        public User GetUserByID(int userID)
+        {
+            return _context.Users.FirstOrDefault(u => u.Id == userID);
+        }
+
         public User Add(string username, string password)
         {
             if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password)) return null;

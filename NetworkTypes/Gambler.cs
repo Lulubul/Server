@@ -6,5 +6,6 @@
         public int Slot { get; set; }
         public string Name { get; set; }
         public string Response { get; set; }
+        public int Wins { get; set; }
     }
 }

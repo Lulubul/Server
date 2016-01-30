@@ -31,6 +31,7 @@ namespace Server
         private int _syncedPlayers;
         private readonly CreaturesRepository _creaturesRepository;
         private readonly HeroesRepository _heroesRepository;
+        private readonly UserRepository _userRepository;
         private readonly IDataCollector _gameInformations = new DataCollector();
         private bool _gameIsOver;
         private Team _winner;
@@ -48,6 +49,7 @@ namespace Server
             var repository = new Repository();
             _creaturesRepository = repository.Creatures;
             _heroesRepository = repository.Heroes;
+            _userRepository = repository.Users;
         }
 
         public void Initialize()
@@ -127,12 +129,8 @@ namespace Server
                     }
                 };
 
-                foreach (var player in Players)
-                {
-                    player.State = State.Lobby;
-                    player.Lobby = "";
-                    player.Slot = -1;
-                }
+                UpdateHistory(_winner);
+
                 NetworkHandler.RemoveLobby(_boardName);
                 NetworkActions.SendMessageToClients(Players, Command.EndGame, winner);
                 return;
@@ -151,6 +149,23 @@ namespace Server
             NetworkActions.SendMessageToClients(Players, Command.FinishAction, turns);
         }
 
+
+        private void UpdateHistory(Team winner)
+        {
+            foreach (var player in Players)
+            {
+                player.State = State.Lobby;
+                player.Lobby = "";
+                player.Slot = -1;
+                var user = _userRepository.GetUserByID(player.DatabaseId);
+                if (winner == player.Team)
+                {
+                    user.Histories.Add(new History() {Date = DateTime.UtcNow, Result = 1});
+                    return;
+                }
+                user.Histories.Add(new History() { Date = DateTime.UtcNow, Result = 0 });
+            }
+        }
 
         public void Attack(AttackModel model)
         {
@@ -230,11 +245,12 @@ namespace Server
 
         private static double CalculateDamage(AbstractCreature creature)
         {
+            var rand = new Random();
             if (creature.Type == CreatureType.Melee)
             {
-                return creature.Damage * creature.Count * 3;
+                return creature.Damage * creature.Count * 3 + rand.Next(1, 25);
             }
-            return creature.Damage * creature.Count * 2;
+            return creature.Damage * creature.Count * 2 + rand.Next(1, 50);
         }
 
         public void SelectUnits(Units units)

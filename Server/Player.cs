@@ -16,6 +16,7 @@ namespace Server
         public int Id { get; set; }
         public int Slot { get; set; }
         public State State = State.Connect;
+        public int DatabaseId { get; set; }
 
         public Player(Socket sock)
         {
